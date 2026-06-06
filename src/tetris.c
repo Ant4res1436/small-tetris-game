@@ -281,7 +281,7 @@ static uint32_t UpdatedState(TetrisGame *game, bool counterClockwise);
 static void SendGarbage(TetrisGame *sender, TetrisGame *reciever);
 static void ResetActive(TetrisGame *game);
 static void ResetDas(TetrisDasMovement *das);
-static bool TryResettingLockDelay(TetrisGame *game);
+static void TryResettingLockDelay(TetrisGame *game);
 static void NewBagIfNeeded(TetrisGame *game);
 static void RecalculateGravity(TetrisGame *game);
 static void PointAdd(TetrisPoint *point, TetrisPoint add);
@@ -294,39 +294,17 @@ TetrisGame TetrisGameNew(uint32_t seed) {
     TetrisPiece bag[TETRIS_SEVEN_BAG_SIZE] = DEFAULT_BAG; 
     memcpy(game.currentBag, bag, sizeof(bag));
     memcpy(game.nextBag, bag, sizeof(bag));
-    game.next = 0;
     game.bagRng = (TetrisRng){seed};
     ShuffleBag(&game.bagRng, game.currentBag);
     ShuffleBag(&game.bagRng, game.nextBag);
-
-    game.active = EMPTY;
-
-    game.held = EMPTY;
-    game.gravityAcceleration = false;
     game.gravityInterval = GRAVITY(TETRIS_LEVEL(9));
-
     game.activeDas = NULL;
-    ResetDas(&game.right);
     game.right.move = MoveRight;
-    ResetDas(&game.left);
     game.left.move = MoveLeft;
-
-    game.gameState = STARTING;
-    game.elapsed = -2.99f;
-    game.score = 0;
-    game.placed = 0;
-    game.lines = 0;
-    game.backToBack = false;
+    game.elapsed = -3.0f;
     game.combo = -1;
-
-    memset(game.incoming, 0, sizeof(game.incoming));
-    game.outgoing = 0;
-    game.lastClear = NONE;
-    game.lastClearTime = 0;
-    game.hadBackToBack = false;
-    game.perfectClear = false;
     game.garbageRng = (TetrisRng){((uint32_t)seed ^ 1664525u)};
-    game.attack = 0;
+    
     return game;
 }
 
@@ -445,7 +423,7 @@ void ToggleSoftdrop(TetrisGame *game) {
     }
 }
 
-void UpdateActive(TetrisGame *game, float frametime) {
+void UpdateTetrisGame(TetrisGame *game, float frametime) {
     if (game->gameState == STARTING || game->gameState == RUNNING) {
         game->elapsed += (frametime / MILLISECONDS_PER_SECOND);
     }
@@ -665,7 +643,7 @@ TetrisClear Harddrop(TetrisGame *game) {
         game->lastClearTime = game->elapsed;
         game->hadBackToBack = ((game->backToBack && difficultClear) || clear == NONE);
     }
-    // Update BackToBack
+    // UpdateTetrisGame BackToBack
     game->backToBack = ((game->backToBack && (clear == NONE || clear == MINI_TSPIN_NONE || clear == TSPIN_NONE)) || difficultClear);
     // Go to Next
     game->placed++;
@@ -789,7 +767,7 @@ static void SendGarbage(TetrisGame *sender, TetrisGame *reciever) {
         }
     }
     // Edge case that we reach end of array just pile it up there I guess
-    reciever->incoming[TETRIS_MAX_INCOMING_CHUNKS] += sender->outgoing;
+    reciever->incoming[(TETRIS_MAX_INCOMING_CHUNKS - 1)] += sender->outgoing;
     sender->outgoing = 0;
 }
 
@@ -812,7 +790,7 @@ static void ResetDas(TetrisDasMovement *das) {
     das->enabled = false;
 }
 
-static bool TryResettingLockDelay(TetrisGame *game) {
+static void TryResettingLockDelay(TetrisGame *game) {
     if (game->remainingLockResetActions > 0 && game->lockDelay < (TETRIS_LOCK_DELAY - 1.0f)) {
         game->lockDelay = TETRIS_LOCK_DELAY;
         game->remainingLockResetActions--;

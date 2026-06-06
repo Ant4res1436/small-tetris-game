@@ -106,12 +106,13 @@ typedef struct TetrisDasMovement {
 } TetrisDasMovement;
 
 typedef struct TetrisGame {
+    // General board and queue
     TetrisPiece board[TETRIS_ROWS][TETRIS_COLUMNS];
     TetrisPiece currentBag[TETRIS_SEVEN_BAG_SIZE];
     TetrisPiece nextBag[TETRIS_SEVEN_BAG_SIZE];
     uint32_t next;
     TetrisRng bagRng;
-    // Active TetrisPiece that can be controlled
+    // Active TetrisPiece
     TetrisPiece active;
     TetrisPoint position;
     uint32_t state;
@@ -122,34 +123,34 @@ typedef struct TetrisGame {
     uint32_t traveledSoftdrop;
     uint32_t traveledHarddrop;
     float gravityTimer;
-    // Hold Info
+    // Hold
     TetrisPiece held;
     bool canHold;
-    // Gravity Info
+    // Gravity
     bool gravityAcceleration;
     float gravityInterval;
-    // Control Info
+    // Control
     TetrisDasMovement *activeDas;
     TetrisDasMovement left;
     TetrisDasMovement right;
-    // Game Info
+    // Statistics
     TetrisState gameState;
     float elapsed;
     uint32_t score;
     uint32_t placed;
     uint32_t lines;
-    
+    uint32_t attack;
+    // Versus info
     bool backToBack;
     int32_t combo;
-    // Versus info
     uint32_t incoming[TETRIS_MAX_INCOMING_CHUNKS];
     uint32_t outgoing;
+    TetrisRng garbageRng;
+    // Useful for Graphics
     TetrisClear lastClear;
     float lastClearTime;
     bool hadBackToBack;
     bool perfectClear;
-    uint32_t attack;
-    TetrisRng garbageRng;
 } TetrisGame;
 
 extern const TetrisPoint MINO_TABLE[TETRIS_SEVEN_BAG_SIZE][TETRIS_ROTATION_STATES][TETRIS_PIECE_MINOS];
@@ -157,7 +158,7 @@ extern const TetrisPoint MINO_TABLE[TETRIS_SEVEN_BAG_SIZE][TETRIS_ROTATION_STATE
 // Recommended to seed Seven Bag RNG properly
 TetrisGame TetrisGameNew(uint32_t seed);
 // Place in the game loop, frametime has to be in milliseconds
-void UpdateActive(TetrisGame *game, float frametime);
+void UpdateTetrisGame(TetrisGame *game, float frametime);
 void SyncGames(TetrisGame *left, TetrisGame *right);
 // TETRIS_DAS Movement should only be used for Player handling
 bool ToggleDasRight(TetrisGame *game);

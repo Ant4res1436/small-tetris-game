@@ -23,8 +23,8 @@ int main(void) {
     while (!WindowShouldClose())
     {
         frametime = (GetFrameTime() * 1000.0f);
-        UpdateActive(&player, frametime);
-        UpdateActive(&bot, frametime);
+        UpdateTetrisGame(&player, frametime);
+        UpdateTetrisGame(&bot, frametime);
         HandleInput(&player, &bot);
         BeginDrawing();
         ClearBackground(BG_COLOR);
