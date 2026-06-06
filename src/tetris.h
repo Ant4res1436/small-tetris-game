@@ -88,6 +88,13 @@ typedef struct {
     uint32_t seed;
 } TetrisRng;
 
+typedef enum {
+    STARTING = 0,
+    RUNNING,
+    WON,
+    LOST,
+} TetrisState;
+
 typedef struct TetrisGame TetrisGame;
 typedef struct TetrisDasMovement TetrisDasMovement;
 
@@ -126,15 +133,19 @@ typedef struct TetrisGame {
     TetrisDasMovement left;
     TetrisDasMovement right;
     // Game Info
+    TetrisState gameState;
     float elapsed;
     uint32_t score;
     uint32_t placed;
     uint32_t lines;
+    
     bool backToBack;
     int32_t combo;
-    // Versus info (not yet implemented)
+    // Versus info
     uint32_t incoming[TETRIS_MAX_INCOMING_CHUNKS];
     uint32_t outgoing;
+    TetrisClear lastClear;
+    float lastClearTime;
     uint32_t attack;
     TetrisRng garbageRng;
 } TetrisGame;
@@ -145,7 +156,7 @@ extern const TetrisPoint MINO_TABLE[TETRIS_SEVEN_BAG_SIZE][TETRIS_ROTATION_STATE
 TetrisGame TetrisGameNew(uint32_t seed);
 // Place in the game loop, frametime has to be in milliseconds
 void UpdateActive(TetrisGame *game, float frametime);
-void SyncGarbage(TetrisGame *left, TetrisGame *right);
+void SyncGames(TetrisGame *left, TetrisGame *right);
 // TETRIS_DAS Movement should only be used for Player handling
 bool ToggleDasRight(TetrisGame *game);
 bool ToggleDasLeft(TetrisGame *game);

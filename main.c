@@ -8,8 +8,6 @@
 #include "src/gui.h"
 #include "src/input.h"
 
-
-
 int main(void) {
     InitWindow(WIDTH, HEIGHT, "Tetris");
     SetConfigFlags(FLAG_MSAA_4X_HINT);
@@ -32,7 +30,7 @@ int main(void) {
         ClearBackground(BG_COLOR);
         DrawTetrisGames(&player, &bot);
         EndDrawing();
-        SyncGarbage(&player, &bot);
+        SyncGames(&player, &bot);
     }
     ArenaDestroy(&arena);
     GuiUnloadTextures();

@@ -299,8 +299,7 @@ TetrisGame TetrisGameNew(uint32_t seed) {
     ShuffleBag(&game.bagRng, game.currentBag);
     ShuffleBag(&game.bagRng, game.nextBag);
 
-    game.active = game.currentBag[game.next++];
-    ResetActive(&game);
+    game.active = EMPTY;
 
     game.held = EMPTY;
     game.gravityAcceleration = false;
@@ -312,7 +311,8 @@ TetrisGame TetrisGameNew(uint32_t seed) {
     ResetDas(&game.left);
     game.left.move = MoveLeft;
 
-    game.elapsed = 0;
+    game.gameState = STARTING;
+    game.elapsed = -2.99f;
     game.score = 0;
     game.placed = 0;
     game.lines = 0;
@@ -320,13 +320,18 @@ TetrisGame TetrisGameNew(uint32_t seed) {
     game.combo = -1;
 
     memset(game.incoming, 0, sizeof(game.incoming));
-    game.outgoing = 2;
+    game.outgoing = 0;
+    game.lastClear = NONE;
+    game.lastClearTime = 0;
     game.garbageRng = (TetrisRng){((uint32_t)seed ^ 1664525u)};
     game.attack = 0;
     return game;
 }
 
 bool ToggleDasRight(TetrisGame *game) {
+    if (game->gameState != RUNNING) {
+        return false;
+    }
     game->right.enabled = !game->right.enabled;
     if (game->right.enabled) {
         game->activeDas = &game->right;
@@ -341,6 +346,9 @@ bool ToggleDasRight(TetrisGame *game) {
     }
 }
 bool ToggleDasLeft(TetrisGame *game) {
+    if (game->gameState != RUNNING) {
+        return false;
+    }
     game->left.enabled = !game->left.enabled;
     if (game->left.enabled) {
         game->activeDas = &game->left;
@@ -356,6 +364,9 @@ bool ToggleDasLeft(TetrisGame *game) {
 }
 
 bool MoveRight(TetrisGame *game) {
+    if (game->gameState != RUNNING) {
+        return false;
+    }
     bool success = !Collision(game, game->state, TETRIS_MOVE_RIGHT);
     if (success) {
         PointAdd(&game->position, TETRIS_MOVE_RIGHT);
@@ -365,6 +376,9 @@ bool MoveRight(TetrisGame *game) {
 }
 
 bool MoveLeft(TetrisGame *game) {
+    if (game->gameState == STARTING) {
+        return false;
+    }
     bool success = !Collision(game, game->state, TETRIS_MOVE_LEFT);
     if (success) {
         PointAdd(&game->position, TETRIS_MOVE_LEFT);
@@ -374,6 +388,9 @@ bool MoveLeft(TetrisGame *game) {
 }
 
 bool RotateClockwise(TetrisGame *game) {
+    if (game->gameState != RUNNING) {
+        return false;
+    }
     bool success = (TrySRS(game, false));
     if (success) {
         TryResettingLockDelay(game);
@@ -382,6 +399,9 @@ bool RotateClockwise(TetrisGame *game) {
 }
 
 bool RotateCounterClockwise(TetrisGame *game) {
+    if (game->gameState != RUNNING) {
+        return false;
+    }
     bool success = TrySRS(game, true);
     if (success) {
         TryResettingLockDelay(game);
@@ -390,6 +410,9 @@ bool RotateCounterClockwise(TetrisGame *game) {
 }
 
 bool Hold(TetrisGame *game) {
+    if (game->gameState != RUNNING) {
+        return false;
+    }
     if (game->canHold) {
         if (game->held == EMPTY) {
             game->held = game->active;
@@ -409,6 +432,9 @@ bool Hold(TetrisGame *game) {
 }
 
 void ToggleSoftdrop(TetrisGame *game) {
+    if (game->gameState != RUNNING) {
+        return;
+    }
     if (TETRIS_LEVEL(game->lines) < GRAVITY_INSTANT_FALL_LEVEL) {
         game->gravityAcceleration = !game->gravityAcceleration;
         RecalculateGravity(game);
@@ -418,6 +444,20 @@ void ToggleSoftdrop(TetrisGame *game) {
 }
 
 void UpdateActive(TetrisGame *game, float frametime) {
+    if (game->gameState == STARTING || game->gameState == RUNNING) {
+        game->elapsed += (frametime / MILLISECONDS_PER_SECOND);
+    }
+    if (game->gameState == STARTING) {
+        if (game->elapsed >= 0) {
+            game->gameState = RUNNING;
+            game->active = game->currentBag[game->next++];
+            ResetActive(game);
+        } else {
+            return;
+        }
+    } else if (game->gameState != RUNNING) {
+        return;
+    }
     // Gravity
     uint32_t level = TETRIS_LEVEL(game->lines);
     int32_t offset = ToGroundOffset(game);
@@ -451,10 +491,16 @@ void UpdateActive(TetrisGame *game, float frametime) {
             game->activeDas->move(game);
         }
     }
-    game->elapsed += (frametime / MILLISECONDS_PER_SECOND);
 }
 
-void SyncGarbage(TetrisGame *left, TetrisGame *right) {
+void SyncGames(TetrisGame *left, TetrisGame *right) {
+    if (left->gameState == LOST) {
+        right->gameState = WON;
+        return;
+    } else if (right->gameState == LOST) {
+        left->gameState = WON;
+        return;
+    }
     if (left->outgoing == right->outgoing) {
         left->outgoing = 0;
         right->outgoing = 0;
@@ -466,6 +512,9 @@ void SyncGarbage(TetrisGame *left, TetrisGame *right) {
 }
 
 TetrisClear Harddrop(TetrisGame *game) {
+    if (game->gameState != RUNNING) {
+        return NONE;
+    }
     TetrisPoint position = (TetrisPoint){0, ToGroundOffset(game)};
     game->rotatedLast = (game->rotatedLast && (position.y == 0));
     PointAdd(&game->position, position);
@@ -615,6 +664,13 @@ TetrisClear Harddrop(TetrisGame *game) {
     ResetActive(game);
     NewBagIfNeeded(game);
     RecalculateGravity(game);
+    if (Collision(game, game->state, (TetrisPoint){0})) {
+        game->gameState = LOST;
+    }
+    if (clear != NONE) {
+        game->lastClear = clear;
+        game->lastClearTime = game->elapsed;
+    }
     return clear;
 }
 

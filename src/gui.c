@@ -3,11 +3,14 @@
 #include <raymath.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <math.h>
 #include "gui.h"
 
 #define CELL_TINTS 8
 #define CELL_SIZE_PROPORTION 26
 #define OUTLINE_COLOR ((Color){240, 240, 240, 255})
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
 
 static const Color minoColors[CELL_TINTS] = {
     (Color){0, 240, 240, 255},     // I
@@ -18,6 +21,21 @@ static const Color minoColors[CELL_TINTS] = {
     (Color){127, 0, 127, 255},     // T
     (Color){240, 0, 0, 255},       // Z
     (Color){127, 127, 127, 255},   // Garbage
+};
+
+static const char *CLEAR_STRINGS[12] = {
+    " ",
+    "SINGLE",
+    "DOUBLE",
+    "TRIPLE",
+    "TETRIS",
+    "MINI TSPIN",
+    "MINI TSPIN SINGLE",
+    "MINI TSPIN DOUBLE",
+    "TSPIN NONE",
+    "TSPIN SINGLE",
+    "TSPIN DOUBLE",
+    "TSPIN TRIPLE",
 };
 
 static Texture2D empty;
@@ -89,36 +107,41 @@ void DrawTetrisGame(TetrisGame *game, Rectangle bounds) {
     
     position.x += (game->position.x * cellSize);
     position.y -= ((game->position.y + 1) * cellSize);
-    // Draw Ghost
+    
     int32_t offset = -ToGroundOffset(game);
     position.y += (offset * cellSize);
     const TetrisPoint *minos = MINO_TABLE[((int)game->active - 1)][game->state];
     Vector2 tempPosition;
-    if (offset > 0) {
+    if (game->active != EMPTY) {
+        // Draw Ghost
+        if (offset > 0) {
+            for (int i = 0; i < TETRIS_PIECE_MINOS; i++) {
+                tempPosition = position;
+                tempPosition.x += (minos[i].x * cellSize); 
+                tempPosition.y -= (minos[i].y * cellSize); 
+                DrawTextureEx(outline, tempPosition, 0, ((float)cellSize) / ((float)skin.width), minoColors[((int)game->active - 1)]);
+            }
+        }
+        // Draw Active 
+        position.y -= (offset * cellSize);
         for (int i = 0; i < TETRIS_PIECE_MINOS; i++) {
             tempPosition = position;
             tempPosition.x += (minos[i].x * cellSize); 
             tempPosition.y -= (minos[i].y * cellSize); 
-            DrawTextureEx(outline, tempPosition, 0, ((float)cellSize) / ((float)skin.width), minoColors[((int)game->active - 1)]);
+            DrawTextureEx(skin, tempPosition, 0, ((float)cellSize) / ((float)skin.width), minoColors[((int)game->active - 1)]);
         }
-    }
-    // Draw Active 
-    position.y -= (offset * cellSize);
-    for (int i = 0; i < TETRIS_PIECE_MINOS; i++) {
-        tempPosition = position;
-        tempPosition.x += (minos[i].x * cellSize); 
-        tempPosition.y -= (minos[i].y * cellSize); 
-        DrawTextureEx(skin, tempPosition, 0, ((float)cellSize) / ((float)skin.width), minoColors[((int)game->active - 1)]);
     }
     // Draw Held
     position.x = (boardRect.x - TETRIS_PIECE_MINOS * cellSize);
     position.y = (boardRect.y + 2 * cellSize);
     minos = MINO_TABLE[((int)game->held - 1)][0];
-    for (int i = 0; i < TETRIS_PIECE_MINOS; i++) {
-        tempPosition = position;
-        tempPosition.x += (minos[i].x * cellSize); 
-        tempPosition.y -= (minos[i].y * cellSize); 
-        DrawTextureEx(skin, tempPosition, 0, ((float)cellSize) / ((float)skin.width), minoColors[((int)game->held - 1)]);
+    if (game->held != EMPTY) {
+        for (int i = 0; i < TETRIS_PIECE_MINOS; i++) {
+            tempPosition = position;
+            tempPosition.x += (minos[i].x * cellSize); 
+            tempPosition.y -= (minos[i].y * cellSize); 
+            DrawTextureEx(skin, tempPosition, 0, ((float)cellSize) / ((float)skin.width), minoColors[((int)game->held - 1)]);
+        }
     }
     // Draw Queue
     int queuePiece;
@@ -202,25 +225,29 @@ void DrawTetrisGame(TetrisGame *game, Rectangle bounds) {
     #endif
     position.x += cellSize * 6;
     #ifdef TETRIS_DISABLE_LEVELING
-        uint32_t hours, minutes;
-        float seconds;
-        hours = game->elapsed / 3600;
-        minutes = game->elapsed / 60 - hours * 60;
-        seconds = (game->elapsed - minutes * 60) - (hours * 3600);
-        char minutePadding[2] = "";
-        if (minutes < 10) {
-            sprintf(minutePadding, "0");
-        }
-        char secondPadding[2] = "";
-        if (seconds < 10) {
-            sprintf(secondPadding, "0");
-        }
-        if (hours > 0) {
-            sprintf(str, "%d:%s%d:%s%.2f", hours, minutePadding, minutes, secondPadding, seconds);
-        } else if (minutes > 0) {
-            sprintf(str, "%d:%s%.2f", minutes, secondPadding, seconds);
+        if (game->elapsed >= 0) {
+            uint32_t hours, minutes;
+            float seconds;
+            hours = game->elapsed / 3600;
+            minutes = game->elapsed / 60 - hours * 60;
+            seconds = (game->elapsed - minutes * 60) - (hours * 3600);
+            char minutePadding[2] = "";
+            if (minutes < 10) {
+                sprintf(minutePadding, "0");
+            }
+            char secondPadding[2] = "";
+            if (seconds < 10) {
+                sprintf(secondPadding, "0");
+            }
+            if (hours > 0) {
+                sprintf(str, "%d:%s%d:%s%.2f", hours, minutePadding, minutes, secondPadding, seconds);
+            } else if (minutes > 0) {
+                sprintf(str, "%d:%s%.2f", minutes, secondPadding, seconds);
+            } else {
+                sprintf(str, "%.2f", seconds);
+            }
         } else {
-            sprintf(str, "%.2f", seconds);
+            sprintf(str, "0.00");
         }
     #else
         sprintf(str, "%d", TETRIS_LEVEL(game->lines));
@@ -235,5 +262,43 @@ void DrawTetrisGame(TetrisGame *game, Rectangle bounds) {
     sprintf(str, "%.2f", (GetFrameTime() * 1000.0f));
     DrawTextEx(GetFontDefault(), str, (Vector2){(cellSize * 5), (cellSize * 1.2)}, fontSize / 2, spacing / 2, DARKGREEN);
     DrawTextEx(GetFontDefault(), "ms", (Vector2){(cellSize * 6.6), (cellSize * 1.2)}, fontSize / 2, spacing / 2, DARKGREEN);
+    
+    Color textColor = YELLOW;
+    Vector2 textSize;
+    if (game->elapsed < 1.0f) {
+        if (game->elapsed < 0.0f) {
+            sprintf(str, "%.0f", roundf(-game->elapsed + 0.5f));
+        } else {
+            textColor = (Color){textColor.r, textColor.g, textColor.b, (textColor.a * (1.0f - game->elapsed))};
+            sprintf(str, "GO!");
+        }
+    } else if (game->gameState == WON) {
+        textColor = BLUE;
+        sprintf(str, "WON");
+    } else if (game->gameState == LOST) {
+        textColor = RED;
+        sprintf(str, "LOST");
+    } else {
+        sprintf(str, " ");
+    }
+    textSize = MeasureTextEx(GetFontDefault(), str, fontSize * 2, spacing * 2);
+    position.x = boardRect.x + (boardRect.width - textSize.x) / 2;
+    position.y = boardRect.y + (boardRect.height - textSize.y) / 2;
+    position.x += cellSize * 0.1f;
+    position.y += cellSize * 0.1f;
+    DrawTextEx(GetFontDefault(), str, position, fontSize * 2 + 1, spacing * 2, BLACK);
+    position.x -= cellSize * 0.2f;
+    position.y -= cellSize * 0.2f;
+    DrawTextEx(GetFontDefault(), str, position, fontSize * 2 + 1, spacing * 2, textColor);
+
+    // Draw Clear
+    if (game->lastClear != NONE) {
+        textSize = MeasureTextEx(GetFontDefault(), CLEAR_STRINGS[(int)game->lastClear], fontSize, spacing);
+        position.x = boardRect.x - (cellSize * 4) - (textSize.x / 2);
+        position.y = boardRect.y + (boardRect.height / 1.5f) - (textSize.y / 2);
+        Color white = WHITE;
+        white = (Color){white.r, white.g, white.b, white.a * (1.0f - MIN((-(game->lastClearTime - game->elapsed) / 2), 1.0f))};
+        DrawTextEx(GetFontDefault(), CLEAR_STRINGS[(int)game->lastClear], position, fontSize, spacing, white);
+    }
 }
 
