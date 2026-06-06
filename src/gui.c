@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <string.h>
 #include "gui.h"
 
 #define CELL_TINTS 8
@@ -30,12 +31,12 @@ static const char *CLEAR_STRINGS[12] = {
     "TRIPLE",
     "TETRIS",
     "MINI TSPIN",
-    "MINI TSPIN SINGLE",
-    "MINI TSPIN DOUBLE",
-    "TSPIN NONE",
-    "TSPIN SINGLE",
-    "TSPIN DOUBLE",
-    "TSPIN TRIPLE",
+    "MINI TSPIN\n SINGLE",
+    "MINI TSPIN\n DOUBLE",
+    "TSPIN",
+    "TSPIN\nSINGLE",
+    "TSPIN\nDOUBLE",
+    "TSPIN\nTRIPLE",
 };
 
 static Texture2D empty;
@@ -278,6 +279,11 @@ void DrawTetrisGame(TetrisGame *game, Rectangle bounds) {
     } else if (game->gameState == LOST) {
         textColor = RED;
         sprintf(str, "LOST");
+    } else if (game->perfectClear && (game->elapsed - game->lastClearTime) < 1.0f) {
+        textColor = (Color){textColor.r, textColor.g, textColor.b, (textColor.a * (1.0f - MIN((-(game->lastClearTime - game->elapsed) / 2), 1.0f)))};
+        fontSize /= 1.8f;
+        spacing /= 1.8f;
+        sprintf(str, "PERFECT\n  CLEAR");
     } else {
         sprintf(str, " ");
     }
@@ -290,15 +296,33 @@ void DrawTetrisGame(TetrisGame *game, Rectangle bounds) {
     position.x -= cellSize * 0.2f;
     position.y -= cellSize * 0.2f;
     DrawTextEx(GetFontDefault(), str, position, fontSize * 2 + 1, spacing * 2, textColor);
+    if (game->perfectClear && (game->elapsed - game->lastClearTime) < 1.0f) {
+        fontSize *= 1.8f;
+        spacing *= 1.8f;
+    }
 
     // Draw Clear
-    if (game->lastClear != NONE) {
-        textSize = MeasureTextEx(GetFontDefault(), CLEAR_STRINGS[(int)game->lastClear], fontSize, spacing);
+    if ((game->elapsed - game->lastClearTime) < 2.0f) {
+        sprintf(str, "%s", CLEAR_STRINGS[(int)game->lastClear]);
+        textSize = MeasureTextEx(GetFontDefault(), str, fontSize, spacing);
         position.x = boardRect.x - (cellSize * 4) - (textSize.x / 2);
-        position.y = boardRect.y + (boardRect.height / 1.5f) - (textSize.y / 2);
-        Color white = WHITE;
-        white = (Color){white.r, white.g, white.b, white.a * (1.0f - MIN((-(game->lastClearTime - game->elapsed) / 2), 1.0f))};
-        DrawTextEx(GetFontDefault(), CLEAR_STRINGS[(int)game->lastClear], position, fontSize, spacing, white);
+        position.y = boardRect.y + (boardRect.height / 1.33f) - (textSize.y / 2);
+        Color clearColor = WHITE;
+        if (game->hadBackToBack) {
+            clearColor = YELLOW;
+        }
+        clearColor = (Color){clearColor.r, clearColor.g, clearColor.b, clearColor.a * (1.0f - MIN((-(game->lastClearTime - game->elapsed) / 2), 1.0f))};
+        DrawTextEx(GetFontDefault(), str, position, fontSize, spacing, clearColor);
+    
+        if (game->combo > 0) {
+            sprintf(str, "%d COMBO", game->combo);
+            textSize = MeasureTextEx(GetFontDefault(), str, fontSize, spacing);
+            position.x = boardRect.x - (cellSize * 4) - (textSize.x / 2);
+            position.y = boardRect.y + (boardRect.height / 2.0f) - (textSize.y / 2);
+            clearColor = WHITE;
+            clearColor = (Color){clearColor.r, clearColor.g, clearColor.b, clearColor.a * (1.0f - MIN((-(game->lastClearTime - game->elapsed) / 2), 1.0f))};
+            DrawTextEx(GetFontDefault(), str, position, fontSize, spacing, clearColor);
+        }
     }
 }
 

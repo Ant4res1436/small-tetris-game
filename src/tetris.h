@@ -146,6 +146,8 @@ typedef struct TetrisGame {
     uint32_t outgoing;
     TetrisClear lastClear;
     float lastClearTime;
+    bool hadBackToBack;
+    bool perfectClear;
     uint32_t attack;
     TetrisRng garbageRng;
 } TetrisGame;

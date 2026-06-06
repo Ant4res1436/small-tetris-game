@@ -323,6 +323,8 @@ TetrisGame TetrisGameNew(uint32_t seed) {
     game.outgoing = 0;
     game.lastClear = NONE;
     game.lastClearTime = 0;
+    game.hadBackToBack = false;
+    game.perfectClear = false;
     game.garbageRng = (TetrisRng){((uint32_t)seed ^ 1664525u)};
     game.attack = 0;
     return game;
@@ -642,6 +644,7 @@ TetrisClear Harddrop(TetrisGame *game) {
     uint32_t score = (SCORING_TABLE[(int)clear] * level);
     if (game->backToBack && difficultClear) {
         score = (uint32_t)(((double)score) * B2B_SCORE_BONUS);
+        
     }
     if (game->combo > 0) {
         score += (game->combo * SCORING_TABLE[(int)COMBO] * level);
@@ -656,8 +659,14 @@ TetrisClear Harddrop(TetrisGame *game) {
         score += (PERFECT_CLEAR_SCORING[perfectClearIndex] * level);
     }
     game->score += score;
+    if (clear != NONE) {
+        game->lastClear = clear;
+        game->perfectClear = perfectClear;
+        game->lastClearTime = game->elapsed;
+        game->hadBackToBack = ((game->backToBack && difficultClear) || clear == NONE);
+    }
     // Update BackToBack
-    game->backToBack = ((game->backToBack && clear == NONE) || difficultClear);
+    game->backToBack = ((game->backToBack && (clear == NONE || clear == MINI_TSPIN_NONE || clear == TSPIN_NONE)) || difficultClear);
     // Go to Next
     game->placed++;
     game->active = (TetrisPiece)game->currentBag[game->next++];
@@ -666,10 +675,6 @@ TetrisClear Harddrop(TetrisGame *game) {
     RecalculateGravity(game);
     if (Collision(game, game->state, (TetrisPoint){0})) {
         game->gameState = LOST;
-    }
-    if (clear != NONE) {
-        game->lastClear = clear;
-        game->lastClearTime = game->elapsed;
     }
     return clear;
 }
