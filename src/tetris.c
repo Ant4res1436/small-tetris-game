@@ -287,7 +287,6 @@ static void NewBagIfNeeded(TetrisGame *game);
 static void RecalculateGravity(TetrisGame *game);
 static void PointAdd(TetrisPoint *point, TetrisPoint add);
 static void PointSubtract(TetrisPoint *point, TetrisPoint subtract);
-static bool PointEquals(TetrisPoint *left, TetrisPoint* right);
 
 TetrisGame TetrisGameNew(uint32_t seed) {
     TetrisGame game = (TetrisGame){0};
@@ -885,8 +884,4 @@ static void PointAdd(TetrisPoint *point, TetrisPoint add) {
 static void PointSubtract(TetrisPoint *point, TetrisPoint subtract) {
     point->x -= subtract.x;
     point->y -= subtract.y;
-}
-
-static bool PointEquals(TetrisPoint *left, TetrisPoint* right) {
-    return ((left->x == right->x) && (left->y == right->y));
 }

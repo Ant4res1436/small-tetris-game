@@ -42,16 +42,8 @@ typedef enum {
     HARDDROP,
 } BotActions;
 
-typedef struct {
-    BotPiece piece;
-    BotPoint position;
-    uint8_t state;
-    bool rotatedLast;
-    bool kickException;
-} BotMove;
-
 void AllocateMemory(size_t size);
-
+void FreeMemory(void);
 BotActions *GetMoves(
     uint32_t board[BOT_COLUMNS],
     BotPiece active,
@@ -60,7 +52,5 @@ BotActions *GetMoves(
     bool b2b,
     int32_t combo
     );
-
-void FreeMemory();
 
 #endif
