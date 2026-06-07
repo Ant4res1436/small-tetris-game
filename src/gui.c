@@ -316,7 +316,7 @@ void DrawTetrisGame(TetrisGame *game, Rectangle bounds) {
     if ((game->gameState == RUNNING || game->gameState == WAITING) && game->perfectClear && (game->elapsed - game->lastClearTime) < 1.5f)  {
         textSize = MeasureTextEx(GetFontDefault(), str, ((fontSize / 1.8f) * 2) + 1, ((spacing / 1.8f) * 2));
     } else {
-        textSize = MeasureTextEx(GetFontDefault(), str, ((fontSize / 1.8f) * 2) + 1, ((spacing / 1.8f) * 2));
+        textSize = MeasureTextEx(GetFontDefault(), str, fontSize * 2, spacing * 2);
     }
     
     position.x = boardRect.x + (boardRect.width - textSize.x) / 2;
