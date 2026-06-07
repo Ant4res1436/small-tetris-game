@@ -313,20 +313,25 @@ void DrawTetrisGame(TetrisGame *game, Rectangle bounds) {
     } else {
         sprintf(str, " ");
     }
-    textSize = MeasureTextEx(GetFontDefault(), str, fontSize * 2, spacing * 2);
+    if ((game->gameState == RUNNING || game->gameState == WAITING) && game->perfectClear && (game->elapsed - game->lastClearTime) < 1.5f)  {
+        textSize = MeasureTextEx(GetFontDefault(), str, ((fontSize / 1.8f) * 2) + 1, ((spacing / 1.8f) * 2));
+    } else {
+        textSize = MeasureTextEx(GetFontDefault(), str, ((fontSize / 1.8f) * 2) + 1, ((spacing / 1.8f) * 2));
+    }
+    
     position.x = boardRect.x + (boardRect.width - textSize.x) / 2;
     position.y = boardRect.y + (boardRect.height - textSize.y) / 2;
     position.x += cellSize * 0.1f;
     position.y += cellSize * 0.1f;
     textShadow = (Color){0, 0, 0, textColor.a};
-    if (game->gameState == RUNNING && game->perfectClear && (game->elapsed - game->lastClearTime) < 1.5f) {
+    if ((game->gameState == RUNNING || game->gameState == WAITING) && game->perfectClear && (game->elapsed - game->lastClearTime) < 1.5f) {
         DrawTextEx(GetFontDefault(), str, position, ((fontSize / 1.8f) * 2) + 1, ((spacing / 1.8f) * 2), textShadow);
     } else {
         DrawTextEx(GetFontDefault(), str, position, fontSize * 2 + 1, spacing * 2, textShadow);
     }
     position.x -= cellSize * 0.2f;
     position.y -= cellSize * 0.2f;
-    if (game->gameState == RUNNING && game->perfectClear && (game->elapsed - game->lastClearTime) < 1.5f) {
+    if ((game->gameState == RUNNING || game->gameState == WAITING) && game->perfectClear && (game->elapsed - game->lastClearTime) < 1.5f) {
         DrawTextEx(GetFontDefault(), str, position, ((fontSize / 1.8f) * 2) + 1, ((spacing / 1.8f) * 2), textColor);
     } else {
         DrawTextEx(GetFontDefault(), str, position, fontSize * 2 + 1, spacing * 2, textColor);

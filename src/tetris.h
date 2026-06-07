@@ -29,7 +29,7 @@
 
 #define TETRIS_LINES_PER_LEVEL 10
 #ifdef TETRIS_DISABLE_LEVELING
-    #define TETRIS_LEVEL(lines) 10
+    #define TETRIS_LEVEL(lines) 1
     #define TETRIS_SOFTDROP_ACCELERATION 30
 #else
     #define TETRIS_LEVEL(lines) (((lines) / TETRIS_LINES_PER_LEVEL) + 1)
