@@ -3,7 +3,6 @@
 
 
 #include "src/tetris.h"
-#include "src/bot/arena.h"
 
 #include "src/gui.h"
 #include "src/input.h"
@@ -18,7 +17,6 @@ int main(void) {
     TetrisGame player = TetrisGameNew(seed);
     TetrisGame bot = TetrisGameNew(seed);
     float frametime;
-    Arena arena = ArenaCreate(ARENA_MiB(10));
 
     while (!WindowShouldClose())
     {
@@ -32,7 +30,6 @@ int main(void) {
         EndDrawing();
         SyncGames(&player, &bot);
     }
-    ArenaDestroy(&arena);
     GuiUnloadTextures();
     CloseWindow();
     

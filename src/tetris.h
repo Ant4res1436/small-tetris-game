@@ -29,17 +29,18 @@
 
 #define TETRIS_LINES_PER_LEVEL 10
 #ifdef TETRIS_DISABLE_LEVELING
-    #define TETRIS_LEVEL(lines) 1
+    #define TETRIS_LEVEL(lines) 10
     #define TETRIS_SOFTDROP_ACCELERATION 30
 #else
     #define TETRIS_LEVEL(lines) (((lines) / TETRIS_LINES_PER_LEVEL) + 1)
     #define TETRIS_SOFTDROP_ACCELERATION 20
 #endif
 
+#define TETRIS_MAX_INCOMING_CHUNKS 256
+
 #define TETRIS_DAS 166.67f
 #define TETRIS_ARR 33.33f
-
-#define TETRIS_MAX_INCOMING_CHUNKS 256
+#define TETRIS_LINE_CLEAR_DELAY 683.33f
 
 typedef struct {
     int32_t x;
@@ -61,6 +62,7 @@ typedef enum {
     T,
     Z,
     GARBAGE,
+    AWAITING_CLEAR
 } TetrisPiece;
 
 typedef enum {
@@ -91,6 +93,7 @@ typedef struct {
 typedef enum {
     STARTING = 0,
     RUNNING,
+    WAITING,
     WON,
     LOST,
 } TetrisState;
@@ -135,6 +138,7 @@ typedef struct TetrisGame {
     TetrisDasMovement right;
     // Statistics
     TetrisState gameState;
+    float waitDelay;
     float elapsed;
     uint32_t score;
     uint32_t placed;

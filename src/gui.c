@@ -7,7 +7,7 @@
 #include <string.h>
 #include "gui.h"
 
-#define CELL_TINTS 8
+#define CELL_TINTS 9
 #define CELL_SIZE_PROPORTION 26
 #define OUTLINE_COLOR ((Color){240, 240, 240, 255})
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
@@ -22,6 +22,7 @@ static const Color minoColors[CELL_TINTS] = {
     (Color){127, 0, 127, 255},     // T
     (Color){240, 0, 0, 255},       // Z
     (Color){127, 127, 127, 255},   // Garbage
+    (Color){255, 255, 255, 255},   // Waiting Clear
 };
 
 static const char *CLEAR_STRINGS[12] = {
@@ -30,9 +31,9 @@ static const char *CLEAR_STRINGS[12] = {
     "DOUBLE",
     "TRIPLE",
     "TETRIS",
-    "MINI TSPIN",
-    "MINI TSPIN\n SINGLE",
-    "MINI TSPIN\n DOUBLE",
+    "MINI\nTSPIN",
+    "MINI\nTSPIN\n SINGLE",
+    "MINI\nTSPIN\n DOUBLE",
     "TSPIN",
     "TSPIN\nSINGLE",
     "TSPIN\nDOUBLE",
@@ -92,11 +93,22 @@ void DrawTetrisGame(TetrisGame *game, Rectangle bounds) {
         (cellSize * TETRIS_ROWS_VISIBLE)
     };
     
+    Color clearColor;
     // Draw Board
     for (int r = TETRIS_ROWS_VISIBLE - 1; r >= 0; r--) {
         for (int c = 0; c < TETRIS_COLUMNS; c++) {
-            if (game->board[r][c] == EMPTY) {
+            if (game->board[r][c] == EMPTY || game->board[r][c] == AWAITING_CLEAR) {
                 DrawTextureEx(empty, position, 0, ((float)cellSize) / ((float)empty.width), WHITE);
+                if (game->board[r][c] == AWAITING_CLEAR) {
+                    clearColor = minoColors[(int)game->board[r][c] - 1];
+                    clearColor = (Color){
+                        clearColor.r,
+                        clearColor.g,
+                        clearColor.b,
+                        (clearColor.a * powf((1.0f - (MIN((-(game->lastClearTime - game->elapsed)), 1.0f) / (TETRIS_LINE_CLEAR_DELAY / 1000.0f))), 1.5f))
+                    };
+                    DrawRectangleV(position, (Vector2){cellSize, cellSize}, clearColor);
+                }
             } else {
                 DrawTextureEx(skin, position, 0, ((float)cellSize) / ((float)skin.width), minoColors[(int)game->board[r][c] - 1]);
             }
@@ -120,7 +132,9 @@ void DrawTetrisGame(TetrisGame *game, Rectangle bounds) {
                 tempPosition = position;
                 tempPosition.x += (minos[i].x * cellSize); 
                 tempPosition.y -= (minos[i].y * cellSize); 
-                DrawTextureEx(outline, tempPosition, 0, ((float)cellSize) / ((float)skin.width), minoColors[((int)game->active - 1)]);
+                if (game->board[game->position.y + minos[i].y][0] != AWAITING_CLEAR) {
+                    DrawTextureEx(outline, tempPosition, 0, ((float)cellSize) / ((float)skin.width), minoColors[((int)game->active - 1)]);
+                }
             }
         }
         // Draw Active 
@@ -129,7 +143,10 @@ void DrawTetrisGame(TetrisGame *game, Rectangle bounds) {
             tempPosition = position;
             tempPosition.x += (minos[i].x * cellSize); 
             tempPosition.y -= (minos[i].y * cellSize); 
-            DrawTextureEx(skin, tempPosition, 0, ((float)cellSize) / ((float)skin.width), minoColors[((int)game->active - 1)]);
+            if (game->board[game->position.y + minos[i].y][0] != AWAITING_CLEAR) {
+                DrawTextureEx(skin, tempPosition, 0, ((float)cellSize) / ((float)skin.width), minoColors[((int)game->active - 1)]);
+            }
+            
         }
     }
     // Draw Held
@@ -265,12 +282,18 @@ void DrawTetrisGame(TetrisGame *game, Rectangle bounds) {
     DrawTextEx(GetFontDefault(), "ms", (Vector2){(cellSize * 6.6), (cellSize * 1.2)}, fontSize / 2, spacing / 2, DARKGREEN);
     
     Color textColor = YELLOW;
+    Color textShadow;
     Vector2 textSize;
     if (game->elapsed < 1.0f) {
         if (game->elapsed < 0.0f) {
             sprintf(str, "%.0f", roundf(-game->elapsed + 0.5f));
         } else {
-            textColor = (Color){textColor.r, textColor.g, textColor.b, (textColor.a * (1.0f - game->elapsed))};
+            textColor = (Color){
+                textColor.r,
+                textColor.g,
+                textColor.b,
+                (textColor.a * powf((1.0f - game->elapsed), 3.0f))
+            };
             sprintf(str, "GO!");
         }
     } else if (game->gameState == WON) {
@@ -279,10 +302,13 @@ void DrawTetrisGame(TetrisGame *game, Rectangle bounds) {
     } else if (game->gameState == LOST) {
         textColor = RED;
         sprintf(str, "LOST");
-    } else if (game->perfectClear && (game->elapsed - game->lastClearTime) < 1.0f) {
-        textColor = (Color){textColor.r, textColor.g, textColor.b, (textColor.a * (1.0f - MIN((-(game->lastClearTime - game->elapsed) / 2), 1.0f)))};
-        fontSize /= 1.8f;
-        spacing /= 1.8f;
+    } else if (game->perfectClear && (game->elapsed - game->lastClearTime) < 1.5f) {
+        textColor = (Color){
+            textColor.r,
+            textColor.g,
+            textColor.b,
+            (textColor.a * powf((1.0f - MIN((-(game->lastClearTime - game->elapsed)) / 1.5f, 1.0f)), 2.0f))
+        };
         sprintf(str, "PERFECT\n  CLEAR");
     } else {
         sprintf(str, " ");
@@ -292,26 +318,37 @@ void DrawTetrisGame(TetrisGame *game, Rectangle bounds) {
     position.y = boardRect.y + (boardRect.height - textSize.y) / 2;
     position.x += cellSize * 0.1f;
     position.y += cellSize * 0.1f;
-    DrawTextEx(GetFontDefault(), str, position, fontSize * 2 + 1, spacing * 2, BLACK);
+    textShadow = (Color){0, 0, 0, textColor.a};
+    if (game->gameState == RUNNING && game->perfectClear && (game->elapsed - game->lastClearTime) < 1.5f) {
+        DrawTextEx(GetFontDefault(), str, position, ((fontSize / 1.8f) * 2) + 1, ((spacing / 1.8f) * 2), textShadow);
+    } else {
+        DrawTextEx(GetFontDefault(), str, position, fontSize * 2 + 1, spacing * 2, textShadow);
+    }
     position.x -= cellSize * 0.2f;
     position.y -= cellSize * 0.2f;
-    DrawTextEx(GetFontDefault(), str, position, fontSize * 2 + 1, spacing * 2, textColor);
-    if (game->perfectClear && (game->elapsed - game->lastClearTime) < 1.0f) {
-        fontSize *= 1.8f;
-        spacing *= 1.8f;
+    if (game->gameState == RUNNING && game->perfectClear && (game->elapsed - game->lastClearTime) < 1.5f) {
+        DrawTextEx(GetFontDefault(), str, position, ((fontSize / 1.8f) * 2) + 1, ((spacing / 1.8f) * 2), textColor);
+    } else {
+        DrawTextEx(GetFontDefault(), str, position, fontSize * 2 + 1, spacing * 2, textColor);
     }
-
+    
+    
     // Draw Clear
     if ((game->elapsed - game->lastClearTime) < 2.0f) {
         sprintf(str, "%s", CLEAR_STRINGS[(int)game->lastClear]);
         textSize = MeasureTextEx(GetFontDefault(), str, fontSize, spacing);
         position.x = boardRect.x - (cellSize * 4) - (textSize.x / 2);
         position.y = boardRect.y + (boardRect.height / 1.33f) - (textSize.y / 2);
-        Color clearColor = WHITE;
+        clearColor = WHITE;
         if (game->hadBackToBack) {
             clearColor = YELLOW;
         }
-        clearColor = (Color){clearColor.r, clearColor.g, clearColor.b, clearColor.a * (1.0f - MIN((-(game->lastClearTime - game->elapsed) / 2), 1.0f))};
+        clearColor = (Color){
+            clearColor.r,
+            clearColor.g,
+            clearColor.b,
+            clearColor.a * (1.0f - MIN((-(game->lastClearTime - game->elapsed) / 2), 1.0f))
+        };
         DrawTextEx(GetFontDefault(), str, position, fontSize, spacing, clearColor);
     
         if (game->combo > 0) {
@@ -320,7 +357,12 @@ void DrawTetrisGame(TetrisGame *game, Rectangle bounds) {
             position.x = boardRect.x - (cellSize * 4) - (textSize.x / 2);
             position.y = boardRect.y + (boardRect.height / 2.0f) - (textSize.y / 2);
             clearColor = WHITE;
-            clearColor = (Color){clearColor.r, clearColor.g, clearColor.b, clearColor.a * (1.0f - MIN((-(game->lastClearTime - game->elapsed) / 2), 1.0f))};
+            clearColor = (Color){
+                clearColor.r,
+                clearColor.g,
+                clearColor.b,
+                clearColor.a * (1.0f - MIN((-(game->lastClearTime - game->elapsed) / 2), 1.0f))
+            };
             DrawTextEx(GetFontDefault(), str, position, fontSize, spacing, clearColor);
         }
     }

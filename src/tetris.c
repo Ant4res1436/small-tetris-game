@@ -278,6 +278,7 @@ static bool TrySRS(TetrisGame *game, bool counterClockwise);
 static bool MoveDown(TetrisGame *game);
 static bool UpdateDas(TetrisDasMovement *das, float frametime);
 static uint32_t UpdatedState(TetrisGame *game, bool counterClockwise);
+static void GoToNext(TetrisGame *game);
 static void SendGarbage(TetrisGame *sender, TetrisGame *reciever);
 static void ResetActive(TetrisGame *game);
 static void ResetDas(TetrisDasMovement *das);
@@ -309,7 +310,7 @@ TetrisGame TetrisGameNew(uint32_t seed) {
 }
 
 bool ToggleDasRight(TetrisGame *game) {
-    if (game->gameState != RUNNING) {
+    if (!(game->gameState == RUNNING || game->gameState == WAITING)) {
         return false;
     }
     game->right.enabled = !game->right.enabled;
@@ -326,7 +327,7 @@ bool ToggleDasRight(TetrisGame *game) {
     }
 }
 bool ToggleDasLeft(TetrisGame *game) {
-    if (game->gameState != RUNNING) {
+    if (!(game->gameState == RUNNING || game->gameState == WAITING)) {
         return false;
     }
     game->left.enabled = !game->left.enabled;
@@ -412,7 +413,7 @@ bool Hold(TetrisGame *game) {
 }
 
 void ToggleSoftdrop(TetrisGame *game) {
-    if (game->gameState != RUNNING) {
+    if (!(game->gameState == RUNNING || game->gameState == WAITING)) {
         return;
     }
     if (TETRIS_LEVEL(game->lines) < GRAVITY_INSTANT_FALL_LEVEL) {
@@ -424,7 +425,7 @@ void ToggleSoftdrop(TetrisGame *game) {
 }
 
 void UpdateTetrisGame(TetrisGame *game, float frametime) {
-    if (game->gameState == STARTING || game->gameState == RUNNING) {
+    if (!(game->gameState == WON || game->gameState == LOST)) {
         game->elapsed += (frametime / MILLISECONDS_PER_SECOND);
     }
     if (game->gameState == STARTING) {
@@ -435,7 +436,29 @@ void UpdateTetrisGame(TetrisGame *game, float frametime) {
         } else {
             return;
         }
-    } else if (game->gameState != RUNNING) {
+    } else if (game->gameState == WAITING) {
+        game->waitDelay -= frametime;
+        if (game->waitDelay <= 0.0f) {
+            game->gameState = RUNNING;
+            bool full;
+            for (int r = (TETRIS_ROWS - 1); r >= 0; r--) {
+                full = true;
+                for (int c = 0; c < TETRIS_COLUMNS; c++) {
+                    if (game->board[r][c] == EMPTY) {
+                        full = false;
+                        break;
+                    }
+                }
+                if (full) {
+                    memmove(&game->board[r], &game->board[(r + 1)], sizeof(TetrisPiece) * TETRIS_COLUMNS * (TETRIS_ROWS - (r + 1)));
+                    memset(&game->board[(TETRIS_ROWS - 1)], 0, sizeof(TetrisPiece) * TETRIS_COLUMNS);
+                    r++;
+                }
+            }
+            GoToNext(game);
+        }
+    }
+    if (game->gameState != RUNNING) {
         return;
     }
     // Gravity
@@ -528,7 +551,7 @@ TetrisClear Harddrop(TetrisGame *game) {
     // TetrisClear Full Lines
     uint32_t cleared = 0;
     bool full;
-    for (int r = MIN((game->position.y + TETRIS_PIECE_MINOS), (TETRIS_ROWS - 1)); r >= MAX((game->position.y - TETRIS_PIECE_MINOS), 0); r--) {
+    for (int r = (TETRIS_ROWS - 1); r >= 0; r--) {
         full = true;
         for (int c = 0; c < TETRIS_COLUMNS; c++) {
             if (game->board[r][c] == EMPTY) {
@@ -537,11 +560,19 @@ TetrisClear Harddrop(TetrisGame *game) {
             }
         }
         if (full) {
+            for (int c = 0; c < TETRIS_COLUMNS; c++) {
+                game->board[r][c] = AWAITING_CLEAR;
+            }
+            cleared++;
+        }
+        /*
+        if (full) {
             memmove(&game->board[r], &game->board[(r + 1)], sizeof(TetrisPiece) * TETRIS_COLUMNS * (TETRIS_ROWS - (r + 1)));
             memset(&game->board[(TETRIS_ROWS - 1)], 0, sizeof(TetrisPiece) * TETRIS_COLUMNS);
             r++;
             cleared++;
         }
+        */
     }
     game->lines += cleared;
     // Correct TetrisClear
@@ -558,7 +589,7 @@ TetrisClear Harddrop(TetrisGame *game) {
     // Check PC
     bool perfectClear = true;
     for (int c = 0; c < TETRIS_COLUMNS; c++) {
-        if (game->board[0][c] != EMPTY)  {
+        if (game->board[0 + cleared][c] != EMPTY)  {
             perfectClear = false;
             break;
         }
@@ -645,14 +676,13 @@ TetrisClear Harddrop(TetrisGame *game) {
     }
     // UpdateTetrisGame BackToBack
     game->backToBack = ((game->backToBack && (clear == NONE || clear == MINI_TSPIN_NONE || clear == TSPIN_NONE)) || difficultClear);
-    // Go to Next
     game->placed++;
-    game->active = (TetrisPiece)game->currentBag[game->next++];
-    ResetActive(game);
-    NewBagIfNeeded(game);
-    RecalculateGravity(game);
-    if (Collision(game, game->state, (TetrisPoint){0})) {
-        game->gameState = LOST;
+    // Set Wait Delay
+    if (cleared > 0) {
+        game->waitDelay = TETRIS_LINE_CLEAR_DELAY;
+        game->gameState = WAITING;
+    } else {
+        GoToNext(game);
     }
     return clear;
 }
@@ -678,6 +708,16 @@ float GetAPM(TetrisGame *game) {
         return 0;
     }
     return ((float)game->attack / (game->elapsed / 60.0f));
+}
+
+static void GoToNext(TetrisGame *game) {
+    game->active = game->currentBag[game->next++];
+    ResetActive(game);
+    NewBagIfNeeded(game);
+    RecalculateGravity(game);
+    if (Collision(game, game->state, (TetrisPoint){0})) {
+        game->gameState = LOST;
+    }
 }
 
 static uint32_t GetRandomNumber(TetrisRng *rng, uint32_t max) {
