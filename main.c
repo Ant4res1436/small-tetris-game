@@ -17,7 +17,7 @@ int main(void) {
 
     TetrisGame bot = TetrisGameNew(seed);
     pthread_t botThread;
-    BotArgs botArgs = (BotArgs){&bot, 0.2f};
+    BotArgs botArgs = (BotArgs){&bot, 2.0f};
     pthread_create(&botThread, NULL, StartBotThread, &botArgs);
 
     float frametime;

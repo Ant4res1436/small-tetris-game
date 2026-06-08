@@ -1,11 +1,12 @@
+#define _POSIX_C_SOURCE 199309L
 #include "botcontrol.h"
 #include "bot/bot.h"
-#include <unistd.h>
+#include <time.h>
 #include <stdio.h>
 
 static bool MakeBotMove(TetrisGame *game);
-static uint32_t *GenBitboard(TetrisGame *game);
-static BotPiece *GenQueue(TetrisGame *game);
+static void GenBitboard(TetrisGame *game, uint32_t *bitboard);
+static void GenQueue(TetrisGame *game, BotPiece *queue);
 static int SleepMilliseconds(float milliseconds);
 
 void* StartBotThread(void* arg) {
@@ -20,17 +21,22 @@ void* StartBotThread(void* arg) {
         SleepMilliseconds(botArgs->game->gravityInterval * (offset + 1));
         ToggleSoftdrop(botArgs->game);
     }
+    
     for(int i = 0; true; i++) {
         printf("Bot Thread doing things %d\n", i);
         SleepMilliseconds((botArgs->piecesPerSecond * 1000.0f) + 0.1f);
+        MakeBotMove(botArgs->game);
     }
+    
     return NULL;
 }
 
 bool MakeBotMove(TetrisGame *game) {
-    uint32_t *board = GenBitboard(game);
-    BotPiece *queue = GenQueue(game);
-
+    uint32_t board[BOT_COLUMNS] = {0};
+    BotPiece queue[BOT_QUEUE_LENGTH] = {0};
+    GenBitboard(game, board);
+    GenQueue(game, queue);
+    /*
     BotActions *moves = GetMoves(
         board,
         (BotPiece)game->active,
@@ -39,7 +45,7 @@ bool MakeBotMove(TetrisGame *game) {
         game->backToBack,
         game->combo
     );
-
+    
     for (int m = 0; moves[m] != MOVE_HARDDROP; m++) {
         switch (moves[m]) {
             case MOVE_RIGHT:
@@ -71,17 +77,39 @@ bool MakeBotMove(TetrisGame *game) {
     }
     Harddrop(game);
     if (game->gameState == WAITING) {
-        usleep(((int)TETRIS_LINE_CLEAR_DELAY + 1) * 1000);
+        SleepMilliseconds(TETRIS_LINE_CLEAR_DELAY + 1);
+    }
+    */
+    return false;
+}
+
+static void GenBitboard(TetrisGame *game, uint32_t *bitboard) {
+    for (int r = 0; r < BOT_ROWS; r++) {
+        for (int c = 0; c < BOT_COLUMNS; c++) {
+            if (game->board[r][c] != (TetrisPiece)EMPTY) {
+                bitboard[c] |= (1 << r);
+            }
+        }
+    }
+}
+static void GenQueue(TetrisGame *game, BotPiece *queue) {
+    int bagIndex;
+    for(int i = 0; i < BOT_QUEUE_LENGTH; i++) {
+        bagIndex = game->next + i;
+        if (bagIndex < TETRIS_SEVEN_BAG_SIZE) {
+            queue[i] == (BotPiece)game->currentBag[bagIndex];
+        } else {
+            queue[i] == (BotPiece)game->nextBag[(bagIndex - TETRIS_SEVEN_BAG_SIZE)];
+        }
     }
 }
 
-static uint32_t *GenBitboard(TetrisGame *game) {
-    return NULL;
-}
-static BotPiece *GenQueue(TetrisGame *game) {
-    return NULL;
-}
-
 static int SleepMilliseconds(float milliseconds) {
-    return usleep((int)(milliseconds * 1000.0f));
+    int seconds = 0;
+    if (milliseconds > 1000.0f) {
+        seconds = (int)(milliseconds / 1000);
+        milliseconds -= (seconds * 1000.0f);
+    }
+    struct timespec sleep = {seconds, (int)(milliseconds * 1000000.0f)};
+    return nanosleep(&sleep, NULL);
 }
