@@ -2,35 +2,39 @@
 #include <stdio.h>
 #include "input.h"
 
-void HandleInput(TetrisGame *left, TetrisGame *right) {
+void HandleInput(TetrisGame *player, TetrisGame *bot, pthread_t *botThread, BotArgs *botArgs) {
     KeyboardKey key = (KeyboardKey)GetKeyPressed();
     while (key != 0)  {
         switch (key) {
             case KEY_RIGHT:
-                ToggleDasRight(left);
+                ToggleDasRight(player);
                 break;
             case KEY_LEFT:
-                ToggleDasLeft(left);
+                ToggleDasLeft(player);
                 break;
             case KEY_UP: 
-                RotateClockwise(left);
+                RotateClockwise(player);
                 break;
             case KEY_LEFT_CONTROL: 
-                RotateCounterClockwise(left);
+                RotateCounterClockwise(player);
                 break;
             case KEY_LEFT_SHIFT: 
-                Hold(left);
+                Hold(player);
                 break;
             case KEY_DOWN: 
-                ToggleSoftdrop(left);
+                ToggleSoftdrop(player);
                 break;
             case KEY_SPACE:
-                Harddrop(left);
+                Harddrop(player);
                 break;
             case KEY_F4:
                 uint32_t seed = rand();
-                *left = TetrisGameNew(seed);
-                *right = TetrisGameNew(seed);
+                *player = TetrisGameNew(seed);
+                *bot = TetrisGameNew(seed);
+                // Reset Bot Thread
+                pthread_cancel(*botThread);
+                pthread_join(*botThread, NULL);
+                pthread_create(botThread, NULL, StartBotThread, botArgs);
                 break;
             default: 
                 break;
@@ -38,13 +42,13 @@ void HandleInput(TetrisGame *left, TetrisGame *right) {
         key = (KeyboardKey)GetKeyPressed();
     }
     if (IsKeyReleased(KEY_DOWN)) {
-        ToggleSoftdrop(left);
+        ToggleSoftdrop(player);
     }
-    if (left->right.enabled && IsKeyUp(KEY_RIGHT)) {
-        ToggleDasRight(left);
+    if (player->right.enabled && IsKeyUp(KEY_RIGHT)) {
+        ToggleDasRight(player);
     }
-    if (left->left.enabled && IsKeyUp(KEY_LEFT)) {
-        ToggleDasLeft(left);
+    if (player->left.enabled && IsKeyUp(KEY_LEFT)) {
+        ToggleDasLeft(player);
     }
     //printf("Active: %d, Next: %d, Held: %d\n",instance->pieceInfo->active ,instance->currentBag[instance->next], instance->held);
 }

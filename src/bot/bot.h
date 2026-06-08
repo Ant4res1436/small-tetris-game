@@ -22,33 +22,33 @@
 #define BOT_MOVE_DOWN (BotPoint){0, -1}
 
 typedef enum {
-    EMPTY = 0,
-    I,
-    J,
-    L,
-    O,
-    S,
-    T,
-    Z,
+    BOT_EMPTY = 0,
+    BOT_I,
+    BOT_J,
+    BOT_L,
+    BOT_O,
+    BOT_S,
+    BOT_T,
+    BOT_Z,
 } BotPiece;
 
 typedef enum {
-    RIGHT = 0,
-    LEFT,
-    CW,
-    CCW,
-    HOLD,
-    SOFTDROP,
-    HARDDROP,
+    MOVE_RIGHT = 0,
+    MOVE_LEFT,
+    MOVE_CW,
+    MOVE_CCW,
+    MOVE_HOLD,
+    MOVE_SOFTDROP,
+    MOVE_HARDDROP,
 } BotActions;
 
 void AllocateMemory(size_t size);
 void FreeMemory(void);
 BotActions *GetMoves(
-    uint32_t board[BOT_COLUMNS],
+    uint32_t *board,
     BotPiece active,
     BotPiece held,
-    BotPiece queue[BOT_QUEUE_LENGTH],
+    BotPiece *queue,
     bool b2b,
     int32_t combo
     );

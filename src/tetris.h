@@ -170,6 +170,7 @@ bool ToggleDasLeft(TetrisGame *game);
 // Incremential Movement useful for Bot Movement
 bool MoveRight(TetrisGame *game);
 bool MoveLeft(TetrisGame *game);
+bool MoveDown(TetrisGame *game);
 // - Incremential Movement
 bool RotateClockwise(TetrisGame *game);
 bool RotateCounterClockwise(TetrisGame *game);

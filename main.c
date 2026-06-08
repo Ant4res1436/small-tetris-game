@@ -1,9 +1,8 @@
 #include <raylib.h>
 #include <raymath.h>
-
-
+#include <pthread.h>
+#include "src/botcontrol.h"
 #include "src/tetris.h"
-
 #include "src/gui.h"
 #include "src/input.h"
 
@@ -15,7 +14,12 @@ int main(void) {
     srand(time(NULL));
     uint32_t seed = rand();
     TetrisGame player = TetrisGameNew(seed);
+
     TetrisGame bot = TetrisGameNew(seed);
+    pthread_t botThread;
+    BotArgs botArgs = (BotArgs){&bot, 0.2f};
+    pthread_create(&botThread, NULL, StartBotThread, &botArgs);
+
     float frametime;
 
     while (!WindowShouldClose())
@@ -23,7 +27,7 @@ int main(void) {
         frametime = (GetFrameTime() * 1000.0f);
         UpdateTetrisGame(&player, frametime);
         UpdateTetrisGame(&bot, frametime);
-        HandleInput(&player, &bot);
+        HandleInput(&player, &bot, &botThread, &botArgs);
         BeginDrawing();
         ClearBackground(BG_COLOR);
         DrawTetrisGames(&player, &bot);
@@ -32,6 +36,9 @@ int main(void) {
     }
     GuiUnloadTextures();
     CloseWindow();
+
+    pthread_cancel(botThread);
+    pthread_join(botThread, NULL);
     
     return 0;
 }

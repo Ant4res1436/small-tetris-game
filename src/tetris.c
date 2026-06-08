@@ -275,7 +275,6 @@ static void ShuffleBag(TetrisRng *rng, TetrisPiece bag[TETRIS_SEVEN_BAG_SIZE]);
 static bool Collision(TetrisGame *game, uint32_t state, TetrisPoint offset);
 static bool CheckTSpinCorner(TetrisGame *game, uint32_t corner);
 static bool TrySRS(TetrisGame *game, bool counterClockwise);
-static bool MoveDown(TetrisGame *game);
 static bool UpdateDas(TetrisDasMovement *das, float frametime);
 static uint32_t UpdatedState(TetrisGame *game, bool counterClockwise);
 static void GoToNext(TetrisGame *game);
@@ -363,6 +362,17 @@ bool MoveLeft(TetrisGame *game) {
     if (success) {
         PointAdd(&game->position, TETRIS_MOVE_LEFT);
         TryResettingLockDelay(game);
+    }
+    return success;
+}
+
+bool MoveDown(TetrisGame *game) {
+    if (game->gameState == STARTING) {
+        return false;
+    }
+    bool success = !Collision(game, game->state, TETRIS_MOVE_DOWN);
+    if (success) {
+        PointAdd(&game->position, TETRIS_MOVE_DOWN);
     }
     return success;
 }
@@ -564,14 +574,6 @@ TetrisClear Harddrop(TetrisGame *game) {
             }
             cleared++;
         }
-        /*
-        if (full) {
-            memmove(&game->board[r], &game->board[(r + 1)], sizeof(TetrisPiece) * TETRIS_COLUMNS * (TETRIS_ROWS - (r + 1)));
-            memset(&game->board[(TETRIS_ROWS - 1)], 0, sizeof(TetrisPiece) * TETRIS_COLUMNS);
-            r++;
-            cleared++;
-        }
-        */
     }
     game->lines += cleared;
     // Correct TetrisClear
@@ -856,14 +858,6 @@ static void RecalculateGravity(TetrisGame *game) {
             game->gravityInterval /= TETRIS_SOFTDROP_ACCELERATION;
     }
     game->gravityTimer = 0;
-}
-
-static bool MoveDown(TetrisGame *game) {
-    if (!Collision(game, game->state, TETRIS_MOVE_DOWN)) {
-        PointAdd(&game->position, TETRIS_MOVE_DOWN);
-        return true;
-    }
-    return false;
 }
 
 static void NewBagIfNeeded(TetrisGame *game) {
