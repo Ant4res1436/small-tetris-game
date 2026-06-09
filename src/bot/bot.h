@@ -16,7 +16,8 @@
 #define BOT_ROTATION_STATES 4
 #define BOT_SRS_OFFSETS 5
 
-#define BOT_START_POSITION (BotPoint){4, 19}
+#define BOT_BOARD_OFFSET_X 3
+#define BOT_START_POSITION (BotPoint){(4 + BOT_BOARD_OFFSET_X), 19}
 #define BOT_MOVE_RIGHT (BotPoint){1, 0}
 #define BOT_MOVE_LEFT (BotPoint){-1, 0}
 #define BOT_MOVE_DOWN (BotPoint){0, -1}
@@ -42,15 +43,29 @@ typedef enum {
     MOVE_HARDDROP,
 } BotActions;
 
-void AllocateMemory(size_t size);
-void FreeMemory(void);
-BotActions *GetMoves(
-    uint32_t *board,
+typedef struct {
+    void *parent;
+    uint16_t board[BOT_ROWS];
+    int32_t score;
+    uint32_t lines;
+    int32_t combo;
+    bool hold;
+    bool b2b;
+    bool twoCornerRule;
+    bool threeCornerRule;
+} BotMove;
+
+void AllocateBotMemory(size_t size);
+void FreeBotMemory(void);
+void GetActions(
+    BotActions *actions,
+    uint16_t *board,
     BotPiece active,
     BotPiece held,
     BotPiece *queue,
     bool b2b,
-    int32_t combo
+    int32_t combo,
+    uint8_t maxDepth
     );
 
 #endif

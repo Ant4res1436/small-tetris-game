@@ -4,8 +4,10 @@
 #include <time.h>
 #include <stdio.h>
 
+#define ACTIONS_ARRAY_SIZE
+
 static bool MakeBotMove(TetrisGame *game);
-static void GenBitboard(TetrisGame *game, uint32_t *bitboard);
+static void GenBitboard(TetrisGame *game, uint16_t *bitboard);
 static void GenQueue(TetrisGame *game, BotPiece *queue);
 static int SleepMilliseconds(float milliseconds);
 
@@ -32,22 +34,25 @@ void* StartBotThread(void* arg) {
 }
 
 bool MakeBotMove(TetrisGame *game) {
-    uint32_t board[BOT_COLUMNS] = {0};
+    BotActions actions[ACTIONS_ARRAY_SIZE] = {0};
+    uint16_t board[BOT_ROWS] = {0};
     BotPiece queue[BOT_QUEUE_LENGTH] = {0};
     GenBitboard(game, board);
     GenQueue(game, queue);
-    /*
-    BotActions *moves = GetMoves(
+    
+    GetActions(
+        actions,
         board,
         (BotPiece)game->active,
         (BotPiece)game->held,
         queue,
         game->backToBack,
-        game->combo
+        game->combo,
+        1
     );
     
-    for (int m = 0; moves[m] != MOVE_HARDDROP; m++) {
-        switch (moves[m]) {
+    for (int m = 0; actions[m] != MOVE_HARDDROP; m++) {
+        switch (actions[m]) {
             case MOVE_RIGHT:
                 MoveRight(game);
                 break;
@@ -79,17 +84,21 @@ bool MakeBotMove(TetrisGame *game) {
     if (game->gameState == WAITING) {
         SleepMilliseconds(TETRIS_LINE_CLEAR_DELAY + 1);
     }
-    */
+    
     return false;
 }
 
-static void GenBitboard(TetrisGame *game, uint32_t *bitboard) {
+static void GenBitboard(TetrisGame *game, uint16_t *bitboard) {
     for (int r = 0; r < BOT_ROWS; r++) {
         for (int c = 0; c < BOT_COLUMNS; c++) {
             if (game->board[r][c] != (TetrisPiece)EMPTY) {
                 bitboard[c] |= (1 << r);
+                printf("1");
+            } else {
+                printf("0");
             }
         }
+        printf("\n");
     }
 }
 static void GenQueue(TetrisGame *game, BotPiece *queue) {

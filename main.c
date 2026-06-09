@@ -5,6 +5,7 @@
 #include "src/tetris.h"
 #include "src/gui.h"
 #include "src/input.h"
+#include "src/bot/bot.h"
 
 int main(void) {
     InitWindow(WIDTH, HEIGHT, "Tetris");
@@ -16,6 +17,7 @@ int main(void) {
     TetrisGame player = TetrisGameNew(seed);
 
     TetrisGame bot = TetrisGameNew(seed);
+    AllocateBotMemory(ARENA_MiB(10));
     pthread_t botThread;
     BotArgs botArgs = (BotArgs){&bot, 2.0f};
     pthread_create(&botThread, NULL, StartBotThread, &botArgs);
@@ -39,6 +41,7 @@ int main(void) {
 
     pthread_cancel(botThread);
     pthread_join(botThread, NULL);
+    FreeBotMemory();
     
     return 0;
 }
