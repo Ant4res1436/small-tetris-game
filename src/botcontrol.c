@@ -1,10 +1,9 @@
 #define _POSIX_C_SOURCE 199309L
 #include "botcontrol.h"
 #include "bot/bot.h"
+#include "bot/evaluate.h"
 #include <time.h>
 #include <stdio.h>
-
-#define ACTIONS_ARRAY_SIZE
 
 static bool MakeBotMove(TetrisGame *game);
 static void GenBitboard(TetrisGame *game, uint16_t *bitboard);
@@ -13,20 +12,15 @@ static int SleepMilliseconds(float milliseconds);
 
 void* StartBotThread(void* arg) {
     BotArgs *botArgs = (BotArgs*)arg;
+    SetDefaultScoring();
     SleepMilliseconds(-botArgs->game->elapsed * 1000.0f);
     while (botArgs->game->gameState == STARTING) {
         SleepMilliseconds(0.1f);
     }
-    int32_t offset = -ToGroundOffset(botArgs->game);
-    if (offset > 0) {
-        ToggleSoftdrop(botArgs->game);
-        SleepMilliseconds(botArgs->game->gravityInterval * (offset + 1));
-        ToggleSoftdrop(botArgs->game);
-    }
     
     for(int i = 0; true; i++) {
         printf("Bot Thread doing things %d\n", i);
-        SleepMilliseconds((botArgs->piecesPerSecond * 1000.0f) + 0.1f);
+        SleepMilliseconds(((1.0f / botArgs->piecesPerSecond) * 1000.0f));
         MakeBotMove(botArgs->game);
     }
     
@@ -34,7 +28,7 @@ void* StartBotThread(void* arg) {
 }
 
 bool MakeBotMove(TetrisGame *game) {
-    BotActions actions[ACTIONS_ARRAY_SIZE] = {0};
+    BotAction actions[BOT_ACTIONS_ARRAY_SIZE] = {0};
     uint16_t board[BOT_ROWS] = {0};
     BotPiece queue[BOT_QUEUE_LENGTH] = {0};
     GenBitboard(game, board);
@@ -51,7 +45,10 @@ bool MakeBotMove(TetrisGame *game) {
         1
     );
     
-    for (int m = 0; actions[m] != MOVE_HARDDROP; m++) {
+    if (game->gameState == WAITING) {
+        SleepMilliseconds(TETRIS_LINE_CLEAR_DELAY + 1);
+    }
+    for (int m = 0; (m < BOT_ACTIONS_ARRAY_SIZE && actions[m] != MOVE_HARDDROP); m++) {
         switch (actions[m]) {
             case MOVE_RIGHT:
                 MoveRight(game);
@@ -79,11 +76,10 @@ bool MakeBotMove(TetrisGame *game) {
                 return false;
                 break;
         }
+        SleepMilliseconds(TETRIS_ARR);
     }
     Harddrop(game);
-    if (game->gameState == WAITING) {
-        SleepMilliseconds(TETRIS_LINE_CLEAR_DELAY + 1);
-    }
+    printf("harddrop");
     
     return false;
 }

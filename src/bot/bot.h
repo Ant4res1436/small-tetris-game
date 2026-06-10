@@ -16,11 +16,17 @@
 #define BOT_ROTATION_STATES 4
 #define BOT_SRS_OFFSETS 5
 
+#define BOT_EMPTY_ROW   0b1110000000000111
+#define BOT_FULL_ROW    0b1111111111111111
 #define BOT_BOARD_OFFSET_X 3
+
 #define BOT_START_POSITION (BotPoint){(4 + BOT_BOARD_OFFSET_X), 19}
 #define BOT_MOVE_RIGHT (BotPoint){1, 0}
 #define BOT_MOVE_LEFT (BotPoint){-1, 0}
 #define BOT_MOVE_DOWN (BotPoint){0, -1}
+
+#define BOT_ACTIONS_ARRAY_SIZE 8
+
 
 typedef enum {
     BOT_EMPTY = 0,
@@ -34,14 +40,14 @@ typedef enum {
 } BotPiece;
 
 typedef enum {
-    MOVE_RIGHT = 0,
+    MOVE_HARDDROP = 0,
+    MOVE_RIGHT,
     MOVE_LEFT,
     MOVE_CW,
     MOVE_CCW,
     MOVE_HOLD,
     MOVE_SOFTDROP,
-    MOVE_HARDDROP,
-} BotActions;
+} BotAction;
 
 typedef struct {
     void *parent;
@@ -53,12 +59,13 @@ typedef struct {
     bool b2b;
     bool twoCornerRule;
     bool threeCornerRule;
+    BotAction actions[BOT_ACTIONS_ARRAY_SIZE];
 } BotMove;
 
 void AllocateBotMemory(size_t size);
 void FreeBotMemory(void);
 void GetActions(
-    BotActions *actions,
+    BotAction *actions,
     uint16_t *board,
     BotPiece active,
     BotPiece held,
