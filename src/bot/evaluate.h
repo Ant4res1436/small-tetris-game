@@ -25,6 +25,6 @@ typedef struct {
 } EvalScoring;
 
 void SetDefaultScoring();
-void Evaluate(BotMove *move);
+void Evaluate(BotState *state);
 
 #endif
