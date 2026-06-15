@@ -6,6 +6,9 @@
 #include "arena.h"
 #include "point.h"
 
+#define BOT_SEARCH_DEPTH 10
+
+
 #define BOT_ROWS 21
 #define BOT_COLUMNS 10
 #define BOT_QUEUE_LENGTH 5
@@ -16,7 +19,7 @@
 #define BOT_ROTATION_STATES 4
 #define BOT_SRS_OFFSETS 5
 
-#define BOT_START_POSITION (BotPoint)(4, 19}
+#define BOT_START_POSITION (BotPoint){4, 19}
 #define BOT_MOVE_RIGHT (BotPoint){1, 0}
 #define BOT_MOVE_LEFT (BotPoint){-1, 0}
 #define BOT_MOVE_DOWN (BotPoint){0, -1}
@@ -46,23 +49,30 @@ typedef enum {
 
 typedef struct {
     void *parent;
+    BotAction actions[BOT_ACTIONS_ARRAY_SIZE];
     uint32_t board[BOT_COLUMNS];
     BotPiece active;
     BotPoint position;
-    uint8_t state;
+    uint8_t rotation;
     bool tspin;
     BotPiece held;
-    BotPiece *queue;
+    BotPiece queue[BOT_QUEUE_LENGTH];
     uint8_t next;
+    uint8_t lines;
     int8_t combo;
     bool b2b;
     float score;
 } BotState;
 
-void AllocateBotMemory(size_t size);
-void FreeBotMemory(void);
-Arena SearchIteration(BotState *currentState);
-void GetBest(BotAction *actions, BotState *currentState);
-void PrintBoard(uint32_t *board);
+typedef struct {
+    BotState* ptr;
+    uint32_t count; 
+} BotNodes;
+
+void StartBot(BotState *initialState, BotNodes *botNodes);
+void RestartBot(BotState *initialState, BotNodes *botNodes);
+void EndBot(void);
+void SearchIteration(BotNodes *botNodes);
+void GetBest(BotAction *actions, BotNodes *nodes);
 
 #endif

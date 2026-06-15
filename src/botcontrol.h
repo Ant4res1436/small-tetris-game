@@ -4,13 +4,9 @@
 #include <stdlib.h>
 #include "tetris.h"
 
-typedef struct {
-    TetrisGame *game;
-    float piecesPerSecond;
-} BotArgs;
-
 // Start the bot and pass it BotArgs;
-void* StartBotThread(void* arg);
+void* StartBotThread(void *arg);
+void MakeBestMove(void);
 
 #endif
 

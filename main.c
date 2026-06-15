@@ -17,10 +17,8 @@ int main(void) {
     TetrisGame player = TetrisGameNew(seed);
 
     TetrisGame bot = TetrisGameNew(seed);
-    AllocateBotMemory(ARENA_MiB(10));
     pthread_t botThread;
-    BotArgs botArgs = (BotArgs){&bot, 4.0f};
-    pthread_create(&botThread, NULL, StartBotThread, &botArgs);
+    pthread_create(&botThread, NULL, StartBotThread, &bot);
 
     float frametime;
 
@@ -29,7 +27,7 @@ int main(void) {
         frametime = (GetFrameTime() * 1000.0f);
         UpdateTetrisGame(&player, frametime);
         UpdateTetrisGame(&bot, frametime);
-        HandleInput(&player, &bot, &botThread, &botArgs);
+        HandleInput(&player, &bot, &botThread);
         BeginDrawing();
         ClearBackground(BG_COLOR);
         DrawTetrisGames(&player, &bot);
@@ -41,7 +39,6 @@ int main(void) {
 
     pthread_cancel(botThread);
     pthread_join(botThread, NULL);
-    FreeBotMemory();
     
     return 0;
 }

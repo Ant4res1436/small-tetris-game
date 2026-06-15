@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include "input.h"
 
-void HandleInput(TetrisGame *player, TetrisGame *bot, pthread_t *botThread, BotArgs *botArgs) {
+void HandleInput(TetrisGame *player, TetrisGame *bot, pthread_t *botThread) {
     KeyboardKey key = (KeyboardKey)GetKeyPressed();
     while (key != 0)  {
         switch (key) {
@@ -34,7 +34,7 @@ void HandleInput(TetrisGame *player, TetrisGame *bot, pthread_t *botThread, BotA
                 // Reset Bot Thread
                 pthread_cancel(*botThread);
                 pthread_join(*botThread, NULL);
-                pthread_create(botThread, NULL, StartBotThread, botArgs);
+                pthread_create(botThread, NULL, StartBotThread, bot);
                 break;
             default: 
                 break;
