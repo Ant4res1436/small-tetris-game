@@ -73,6 +73,5 @@ void StartBot(BotState *initialState, BotNodes *botNodes);
 void RestartBot(BotState *initialState, BotNodes *botNodes);
 void EndBot(void);
 void SearchIteration(BotNodes *botNodes);
-void GetBest(BotAction *actions, BotNodes *nodes);
-
+void GetBest(BotAction *actions, BotState *root);
 #endif

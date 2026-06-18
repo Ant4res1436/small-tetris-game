@@ -302,7 +302,6 @@ TetrisGame TetrisGameNew(uint32_t seed) {
     game.left.move = MoveLeft;
     game.elapsed = -3.0f;
     game.combo = -1;
-    game.incoming[0] = 19;
     game.garbageRng = (TetrisRng){((uint32_t)seed ^ rand())};
     
     return game;

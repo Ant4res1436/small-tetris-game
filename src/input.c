@@ -32,9 +32,10 @@ void HandleInput(TetrisGame *player, TetrisGame *bot, pthread_t *botThread) {
                 *player = TetrisGameNew(seed);
                 *bot = TetrisGameNew(seed);
                 // Reset Bot Thread
+                EndBotThread(NULL);
                 pthread_cancel(*botThread);
                 pthread_join(*botThread, NULL);
-                pthread_create(botThread, NULL, StartBotThread, bot);
+                pthread_create(botThread, NULL, StartBotThread, player);
                 break;
             default: 
                 break;

@@ -7,9 +7,8 @@
 
 static BotNodes nodes = {0};
 
-static void EndBotThread(void *arg);
-static void GenBitboard(TetrisGame *game, uint32_t *bitboard);
-static void GenQueue(TetrisGame *game, BotPiece *queue);
+static void GenBitboard(TetrisGame *game, BotState *state);
+static void CarryPieces(TetrisGame *game, BotState *state);
 static void PrintBoard(uint32_t *board);
 static int SleepMilliseconds(float milliseconds);
 
@@ -18,55 +17,93 @@ void* StartBotThread(void *arg) {
     BotState gameState = {0};
         
 
-    GenBitboard(game, gameState.board);
-    gameState.active = game->active;
-    gameState.held = game->held;
-    GenQueue(game, gameState.queue);
+    GenBitboard(game, &gameState);
+    CarryPieces(game, &gameState);
     StartBot(&gameState, &nodes);
-    pthread_cleanup_push(EndBotThread, NULL);
-
-
+    pthread_cleanup_push(EndBotThread, NULL); 
     while(true) {
         SearchIteration(&nodes);
-        SleepMilliseconds(10000.0f);
+        printf("%d\n", nodes.count);
+        break;
     }
     pthread_cleanup_pop(1);
     return NULL;
 }
 
-void MakeBestMove(void) {
+void MakeBestMove(TetrisGame *game) {
     BotAction actions[BOT_ACTIONS_ARRAY_SIZE] = {0};
-    GetBest(actions, &nodes);
+    BotState gameState = {0};
+    GenBitboard(game, &gameState);
+    CarryPieces(game, &gameState);
+    GetBest(actions, &gameState);
+    bool harddrop = false;
+    printf("Moves: ");
+    for (int i = 0; (i < BOT_ACTIONS_ARRAY_SIZE && !harddrop); i++) {
+        printf("%d->", actions[i]);
+        switch (actions[i]) {
+            case MOVE_HARDDROP:
+                harddrop = true;
+                Harddrop(game);
+                break;
+            case MOVE_RIGHT:
+                MoveRight(game);
+                break;
+            case MOVE_LEFT:
+                MoveLeft(game);
+                break;
+            case MOVE_CW:
+                RotateClockwise(game);
+                break;
+            case MOVE_CCW:
+                RotateCounterClockwise(game);
+                break;
+            case MOVE_SOFTDROP:
+                while (MoveDown(game));
+                break;
+            case MOVE_HOLD:
+                Hold(game);
+                break;
+            default:
+                break;
+        }
+    }
+    printf("\n");
 }
-static void EndBotThread(void *arg) {
+void EndBotThread(void *arg) {
     EndBot();
     printf("Exited Bot Thread successfully\n");
 }
 
-static void GenBitboard(TetrisGame *game, uint32_t *bitboard) {
+static void GenBitboard(TetrisGame *game, BotState *state) {
     for (int r = 0; r < BOT_ROWS; r++) {
         for (int c = 0; c < BOT_COLUMNS; c++) {
             if (game->board[r][c] != EMPTY) {
-                bitboard[c] |= (1 << r);
+                state->board[c] |= (1 << r);
             }
         }
     }
 }
 
-static void GenQueue(TetrisGame *game, BotPiece *queue) {
+static void CarryPieces(TetrisGame *game, BotState *state) {
+    state->active = (BotPiece)game->active;
+    state->held = (BotPiece)game->held;
+    printf("Active %d\n", state->active);
+    printf("Held %d\n", state->held);
     int bagIndex;
+    printf("queue: ");
     for(int i = 0; i < BOT_QUEUE_LENGTH; i++) {
         bagIndex = game->next + i;
         if (bagIndex < TETRIS_SEVEN_BAG_SIZE) {
-            queue[i] = game->currentBag[bagIndex];
+            state->queue[i] = game->currentBag[bagIndex];
         } else {
-            queue[i] = game->nextBag[(bagIndex - TETRIS_SEVEN_BAG_SIZE)];
+            state->queue[i] = game->nextBag[(bagIndex - TETRIS_SEVEN_BAG_SIZE)];
         }
-        
+        printf("%d", state->queue[i]);
     }
+    printf("\n");
 }
 
-void PrintBoard(uint32_t *board) {
+static void PrintBoard(uint32_t *board) {
     printf("\n");
     for (int r = (BOT_ROWS - 1); r >= 0; r--) {
         for (int c = 0; c < BOT_COLUMNS; c++) {
