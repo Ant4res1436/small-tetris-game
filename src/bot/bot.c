@@ -7,19 +7,20 @@
 #include <time.h>
 #include <immintrin.h>  
 
-#define BEAM_SEARCH_SIZE 3
+#define BEST_BRANCH_SIZE ARENA_MiB(1)
 #define MOVE_ARRAY_SIZE 48
 
-static Arena best = (Arena){0};
-static Arena nodes = (Arena){0};
+static Arena iterations[(BOT_SEARCH_DEPTH + 1)];
+static uint32_t currentIteration;
 static bool stopSearch;
+static Arena bestBranch;
 
 static const BotPoint BOT_MINO_TABLE[BOT_PIECE_TYPES][BOT_ROTATION_STATES][BOT_PIECE_MINOS] = {
     {   // I TetrisPiece
         { {-1,0},{0,0},{1,0},{2,0} },
+        { {1,1},{1,0},{1,-1},{1,-2} },
+        { {-1,-1},{0,-1},{1,-1},{2,-1} },
         { {0,1},{0,0},{0,-1},{0,-2} },
-        { {-2,0},{-1,0},{0,0},{1,0} },
-        { {0,2},{0,1},{0,0},{0,-1} },
     },
     {   // L TetrisPiece
         { {-1,1},{-1,0},{0,0},{1,0} },
@@ -57,13 +58,6 @@ static const BotPoint BOT_MINO_TABLE[BOT_PIECE_TYPES][BOT_ROTATION_STATES][BOT_P
         { {-1,0},{0,0},{0,-1},{1,-1} },
         { {-1,-1},{-1,0},{0,0},{0,1} },
     },
-};
-
-static const BotPoint BOT_ANCHOR_I_OFFSETS[BOT_ROTATION_STATES] = {
-    (BotPoint){0, 0},
-    (BotPoint){1, 0},
-    (BotPoint){1, -1},
-    (BotPoint){0, -1},
 };
 
 static const BotPoint BOT_SRS_TABLE_JLSTZ[BOT_ROTATION_TYPES][BOT_ROTATION_STATES][BOT_SRS_OFFSETS] = {
@@ -193,98 +187,105 @@ static const BotPoint BOT_SRS_TABLE_I[BOT_ROTATION_TYPES][BOT_ROTATION_STATES][B
     }
 };
 
-static void GenMoves(BotState *state, BotState *candidates, bool hold);
+static void GenMoves(BotState *parent, BotState *candidates, bool hold);
 static bool Collision(BotState *state, uint8_t rotation, BotPoint offset);
 static void SRS(BotState *state);
 static void Place(BotState *state);
 static int SleepMilliseconds(float milliseconds);
 static void PrintBoard(uint32_t *board);
 
-void StartBot(BotState *initialState, BotNodes *botNodes) {
-    best = ArenaCreate(ARENA_MiB(1));
-    nodes = ArenaCreate(ARENA_MiB(100));
+void StartBot(BotState *currentState) {
     SetDefaultScoring();
-    RestartBot(initialState, botNodes);
-
+    int iterationNodes = 1;
+    for (int i = 0; i < (BOT_SEARCH_DEPTH + 1); i++) {
+        iterations[i] = ArenaCreate(sizeof(BotState) * iterationNodes);
+        iterationNodes *= BOT_BEAM_SEARCH_WIDTH;
+    }
+    bestBranch = ArenaCreate(BEST_BRANCH_SIZE);
+    ResetSearch(currentState);
 }
 
-void RestartBot(BotState *initialState, BotNodes *botNodes) {
-    ArenaReset(&best);
-    ArenaReset(&nodes);
-    botNodes->ptr = ArenaAlloc(&nodes, sizeof(initialState));
-    memcpy(botNodes->ptr, initialState, sizeof(BotState));
-    botNodes->count = 1;
+void ResetSearch(BotState *currentState) {
+    
+    for (int i = 0; i < (BOT_SEARCH_DEPTH + 1); i++) {
+        ArenaReset(&iterations[i]);
+    }
+    BotState *rootNode = ArenaAlloc(&iterations[0], sizeof(BotState));
+    *rootNode = *currentState;
+    currentIteration = 0;
     stopSearch = false;
 }
 
 void EndBot(void) {
-    stopSearch = true;
-    ArenaDestroy(&best);
-    ArenaDestroy(&nodes);
-    best = (Arena){0};
-    nodes = (Arena){0};
+    for (int i = 0; i < (BOT_SEARCH_DEPTH + 1); i++) {
+        ArenaDestroy(&iterations[i]);
+    }
+    ArenaDestroy(&bestBranch);
 }
 
-void SearchIteration(BotNodes *botNodes) {
-    BotNodes tempNodes = {0};
-    tempNodes.ptr = botNodes->ptr + botNodes->count;
+void SearchIteration(void) {
+    if (currentIteration >= BOT_SEARCH_DEPTH) {
+        return;
+    }
 
-    BotState best[BOT_SEARCH_DEPTH];
-    for(int n = 0; n < botNodes->count; n++) {
-        while (stopSearch) {
-            SleepMilliseconds(1);
+    BotState candidates[BOT_BEAM_SEARCH_WIDTH];
+    for (int n = 0; n < (iterations[(currentIteration)].position / sizeof(BotState)); n++) {
+        if (stopSearch) {
+            SleepMilliseconds(0.1f);
             return;
         }
-        if ((botNodes->ptr[n].next + 1) >= BOT_QUEUE_LENGTH) {
-            stopSearch = true;
-            break;
+        if (((BotState*)iterations[currentIteration].memory)[n].next >= BOT_QUEUE_LENGTH) {
+            memcpy(ArenaAlloc(&iterations[(currentIteration + 1)], sizeof(BotState)), &((BotState*)iterations[currentIteration].memory)[n], sizeof(BotState));
+            continue;
         }
-        //printf("aa\n");
-        memset(best, 0, (sizeof(BotState) * BOT_SEARCH_DEPTH));
-        for (int i = 0; i < BOT_SEARCH_DEPTH; i++) {
-            best->score = -FLT_MAX;
+        memset(candidates, 0, (sizeof(BotState) * BOT_BEAM_SEARCH_WIDTH));
+        for (int i = 0; i < BOT_BEAM_SEARCH_WIDTH; i++) {
+            candidates[i].score = -FLT_MAX;
         }
-        GenMoves(&botNodes->ptr[n], best, false);
-        GenMoves(&botNodes->ptr[n], best, true);
-        if (ArenaAlloc(&nodes, sizeof(best)) == NULL) {
-            stopSearch = true;
-            break;
-        }
-        tempNodes.count += BOT_SEARCH_DEPTH;
-        
+        GenMoves(&((BotState*)iterations[currentIteration].memory)[n], candidates, false);
+        GenMoves(&((BotState*)iterations[currentIteration].memory)[n], candidates, true);
+        memcpy(ArenaAlloc(&iterations[(currentIteration + 1)], sizeof(candidates)), candidates, sizeof(candidates));
     }
-
-    botNodes->count = tempNodes.count;
-    botNodes->ptr = tempNodes.ptr;
+    
+    currentIteration++;
+    
 }
 
-void GetBest(BotAction *actions, BotState *root) {
-    BotState candidates[BOT_SEARCH_DEPTH] = {0};
-    for (int i = 0; i < BOT_SEARCH_DEPTH; i++) {
-        candidates->score = -FLT_MAX;
-    }
-
-    GenMoves(root, candidates, false);
-    GenMoves(root, candidates, true);
-
-    BotState *best = &candidates[0];
-    for (int i = 1; i < BOT_SEARCH_DEPTH; i++) {
-        if (candidates[i].score > best->score) {
-            best = &candidates[i];
+void GetBest(BotAction *actions) {
+    stopSearch = true;
+    BotState *best = &((BotState*)iterations[currentIteration].memory)[0];
+    for (int n = 1; n < (iterations[currentIteration].position / sizeof(BotState)); n++) {
+        //PrintBoard(((BotState*)iterations[currentIteration].memory)[n].board);
+        if ((((BotState*)iterations[currentIteration].memory)[n]).score > best->score) {
+            best = &((BotState*)iterations[currentIteration].memory)[n];
         }
+    }
+    BotState *parent;
+    while (best->parent != NULL) {
+        parent = (BotState*)best->parent;
+        if (parent->parent == NULL) {
+            break;
+        }
+        best = parent;
     }
     PrintBoard(best->board);
-    printf("Best X: %d\n", best->position.x);
+    int nodes = 0;
+    for (int n = 0; n < (BOT_SEARCH_DEPTH + 1); n++) {
+        nodes += (iterations[n].position / sizeof(BotState));
+    }
+    printf("Nodes: %d\n", nodes);
+
     memcpy(actions, best->actions, sizeof(BotAction) * BOT_ACTIONS_ARRAY_SIZE);
+    SleepMilliseconds(0.1f);
 }
 
-static void GenMoves(BotState *state, BotState *candidates, bool hold) {
+static void GenMoves(BotState *parent, BotState *candidates, bool hold) {
     BotState newStates[MOVE_ARRAY_SIZE] = {0};
-    BotState tempState = *state;
-    tempState.parent = state;
+    BotState tempState = *parent;
+    tempState.parent = parent;
     int actionCount;
     if (hold) {
-        if (state->held == BOT_EMPTY) {
+        if (parent->held == BOT_EMPTY) {
             tempState.held = tempState.active;
             tempState.active = tempState.queue[tempState.next++];
         } else {
@@ -293,15 +294,13 @@ static void GenMoves(BotState *state, BotState *candidates, bool hold) {
             tempState.held = swap;
         }
     }
+    tempState.next++;
     int count = 0;
     for (int rot = 0; rot < BOT_ROTATION_STATES; rot++) {
         for (int c = -1; c < (BOT_COLUMNS + 1); c++) {
             tempState.position.x = c;
             tempState.position.y = BOT_START_POSITION.y;
             tempState.rotation = rot;
-            if (tempState.active = BOT_I) {
-                PointAdd(&tempState.position, BOT_ANCHOR_I_OFFSETS[rot]);
-            }
 
             if (Collision(&tempState, rot, (BotPoint){0})) {
                 continue;
@@ -313,8 +312,9 @@ static void GenMoves(BotState *state, BotState *candidates, bool hold) {
             };
             Place(&newStates[count]);
             Evaluate(&newStates[count]);
-            for (int i = 0; i < BOT_SEARCH_DEPTH; i++) {
+            for (int i = 0; i < BOT_BEAM_SEARCH_WIDTH; i++) {
                 if (newStates[count].score > candidates[i].score) {
+                    //memset(newStates[count].actions, 0, (sizeof(BotAction) * MOVE_ARRAY_SIZE));
                     actionCount = 0;
                     if (hold) {
                         newStates[count].actions[actionCount] = MOVE_HOLD;
@@ -342,12 +342,12 @@ static void GenMoves(BotState *state, BotState *candidates, bool hold) {
                     if (newStates[count].position.x < BOT_START_POSITION.x) {
                         direction = MOVE_LEFT;
                     }
-                    for (int i = 0; i < abs((BOT_START_POSITION.x - newStates[count].position.x)); i++) {
+                    for (int j = 0; j < abs((BOT_START_POSITION.x - newStates[count].position.x)); j++) {
                         newStates[count].actions[actionCount] = direction;
                         actionCount++;
                     }
-                    if (i < (BOT_SEARCH_DEPTH - 1)) {
-                        memmove(&candidates[i + 1], &candidates[i], sizeof(BotState) * (BOT_SEARCH_DEPTH - (i + 1)));
+                    if (i < (BOT_BEAM_SEARCH_WIDTH - 1)) {
+                        memmove(&candidates[i + 1], &candidates[i], sizeof(BotState) * (BOT_BEAM_SEARCH_WIDTH - (i + 1)));
                     }
                     candidates[i] = newStates[count];
                     break;
@@ -392,7 +392,7 @@ static void Place(BotState *state) {
         lineMask &= state->board[c];
     }
     if (lineMask == 0) {
-        state->combo = 0;
+        state->combo = -1;
         state->lines = 0;
         return;
     }

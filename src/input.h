@@ -5,6 +5,8 @@
 #include <pthread.h>
 #include "botcontrol.h"
 
-void HandleInput(TetrisGame *player, TetrisGame *bot, pthread_t *botThread);
+void SetUpBot(TetrisGame *bot);
+void StopBotThread(void);
+void HandleInput(TetrisGame *player, TetrisGame *bot, float frametime);
 
 #endif

@@ -1,8 +1,33 @@
 #include <raylib.h>
 #include <stdio.h>
 #include "input.h"
+#include <pthread.h>
 
-void HandleInput(TetrisGame *player, TetrisGame *bot, pthread_t *botThread) {
+//#define ENTER_BOT_CONTROL
+
+static pthread_t botThread;
+
+typedef struct {
+    TetrisGame *game;
+    float pps;
+    float timer;
+} BotInterval;
+
+static BotInterval botInterval = {0};
+
+static void IncrementBotTimer(float frametime);
+
+void SetUpBot(TetrisGame *bot) {
+    pthread_create(&botThread, NULL, StartBotThread, bot);
+    botInterval = (BotInterval){bot, 2.0f, 0.0f};
+}
+
+void StopBotThread(void) {
+    pthread_cancel(botThread);
+    pthread_join(botThread, NULL);
+}
+
+void HandleInput(TetrisGame *player, TetrisGame *bot, float frametime) {
     KeyboardKey key = (KeyboardKey)GetKeyPressed();
     while (key != 0)  {
         switch (key) {
@@ -32,10 +57,8 @@ void HandleInput(TetrisGame *player, TetrisGame *bot, pthread_t *botThread) {
                 *player = TetrisGameNew(seed);
                 *bot = TetrisGameNew(seed);
                 // Reset Bot Thread
-                EndBotThread(NULL);
-                pthread_cancel(*botThread);
-                pthread_join(*botThread, NULL);
-                pthread_create(botThread, NULL, StartBotThread, player);
+                botInterval.timer = 0;
+                RestartBotThread(bot);
                 break;
             default: 
                 break;
@@ -51,5 +74,23 @@ void HandleInput(TetrisGame *player, TetrisGame *bot, pthread_t *botThread) {
     if (player->left.enabled && IsKeyUp(KEY_LEFT)) {
         ToggleDasLeft(player);
     }
+
+    #ifdef ENTER_BOT_CONTROL
+        if (IsKeyPressed(KEY_ENTER)) {
+            MakeBestMove(botInterval.game);
+        }
+    #else
+        if (bot->gameState == RUNNING) {
+            IncrementBotTimer(frametime);
+        }
+    #endif
     //printf("Active: %d, Next: %d, Held: %d\n",instance->pieceInfo->active ,instance->currentBag[instance->next], instance->held);
+}
+
+static void IncrementBotTimer(float frametime) {
+    botInterval.timer += frametime;
+    if (botInterval.timer >= (1000.0f / botInterval.pps)) {
+        botInterval.timer = 0;
+        MakeBestMove(botInterval.game);
+    }
 }

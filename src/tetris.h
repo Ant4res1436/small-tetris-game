@@ -39,7 +39,7 @@
 
 #define TETRIS_DAS 166.67f
 #define TETRIS_ARR 33.33f
-#define TETRIS_LINE_CLEAR_DELAY 1.0f //683.33f
+#define TETRIS_LINE_CLEAR_DELAY 683.33f
 
 typedef struct {
     int32_t x;

@@ -6,6 +6,7 @@
 
 // Start the bot and pass it BotArgs;
 void* StartBotThread(void *arg);
+void RestartBotThread(TetrisGame *game);
 void MakeBestMove(TetrisGame *game);
 void EndBotThread(void* arg);
 

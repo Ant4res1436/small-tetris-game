@@ -6,8 +6,8 @@
 #include "arena.h"
 #include "point.h"
 
-#define BOT_SEARCH_DEPTH 10
-
+#define BOT_SEARCH_DEPTH 5
+#define BOT_BEAM_SEARCH_WIDTH 30
 
 #define BOT_ROWS 21
 #define BOT_COLUMNS 10
@@ -69,9 +69,9 @@ typedef struct {
     uint32_t count; 
 } BotNodes;
 
-void StartBot(BotState *initialState, BotNodes *botNodes);
-void RestartBot(BotState *initialState, BotNodes *botNodes);
+void StartBot(BotState *currentState);
+void ResetSearch(BotState *currentState);
 void EndBot(void);
-void SearchIteration(BotNodes *botNodes);
-void GetBest(BotAction *actions, BotState *root);
+void SearchIteration(void);
+void GetBest(BotAction *actions);
 #endif
