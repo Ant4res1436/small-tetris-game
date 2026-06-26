@@ -269,6 +269,7 @@ void GetBest(BotAction *actions) {
         best = parent;
     }
     PrintBoard(best->board);
+    printf("Score: %.2f\n", best->score);
     int nodes = 0;
     for (int n = 0; n < (BOT_SEARCH_DEPTH + 1); n++) {
         nodes += (iterations[n].position / sizeof(BotState));

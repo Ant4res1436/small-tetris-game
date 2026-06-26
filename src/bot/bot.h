@@ -7,7 +7,7 @@
 #include "point.h"
 
 #define BOT_SEARCH_DEPTH 5
-#define BOT_BEAM_SEARCH_WIDTH 30
+#define BOT_BEAM_SEARCH_WIDTH 20
 
 #define BOT_ROWS 21
 #define BOT_COLUMNS 10

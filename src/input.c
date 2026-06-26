@@ -19,7 +19,7 @@ static void IncrementBotTimer(float frametime);
 
 void SetUpBot(TetrisGame *bot) {
     pthread_create(&botThread, NULL, StartBotThread, bot);
-    botInterval = (BotInterval){bot, 2.0f, 0.0f};
+    botInterval = (BotInterval){bot, 3.0f, 0.0f};
 }
 
 void StopBotThread(void) {
