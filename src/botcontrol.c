@@ -42,6 +42,7 @@ void RestartBotThread(TetrisGame *game) {
 
     BotState currentState = {0};
     currentState.combo = game->combo;
+    currentState.highestCombo = currentState.combo;
     currentState.b2b = game->backToBack;
     GenBitboard(game, &currentState);
     CarryPieces(game, &currentState);
@@ -87,6 +88,7 @@ void MakeBestMove(TetrisGame *game) {
     BotState currentState = {0};
     GenBitboard(game, &currentState);
     currentState.combo = game->combo;
+    currentState.highestCombo = currentState.combo;
     currentState.b2b = game->backToBack;
     CarryPieces(game, &currentState);
     ResetSearch(&currentState);

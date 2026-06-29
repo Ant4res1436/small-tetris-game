@@ -7,7 +7,7 @@
 #include "point.h"
 
 #define BOT_SEARCH_DEPTH 5
-#define BOT_BEAM_SEARCH_WIDTH 20
+#define BOT_BEAM_SEARCH_WIDTH 10
 
 #define BOT_ROWS 21
 #define BOT_COLUMNS 10
@@ -59,6 +59,7 @@ typedef struct {
     BotPiece queue[BOT_QUEUE_LENGTH];
     uint8_t next;
     uint8_t lines;
+    int8_t highestCombo;
     int8_t combo;
     bool b2b;
     float score;

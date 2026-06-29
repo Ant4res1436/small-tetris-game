@@ -10,6 +10,9 @@
 #define BEST_BRANCH_SIZE ARENA_MiB(1)
 #define MOVE_ARRAY_SIZE 48
 
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+
 static Arena iterations[(BOT_SEARCH_DEPTH + 1)];
 static uint32_t currentIteration;
 static bool stopSearch;
@@ -393,6 +396,7 @@ static void Place(BotState *state) {
         lineMask &= state->board[c];
     }
     if (lineMask == 0) {
+        state->highestCombo = MAX(state->combo, state->highestCombo);
         state->combo = -1;
         state->lines = 0;
         return;

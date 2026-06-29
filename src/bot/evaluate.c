@@ -3,151 +3,121 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define UPPER_HALF 10
+#define UPPER_QUARTER 15
+#define LIMIT_COVER(a) MIN(a, 6)
+
 typedef struct {
     float holes;
-    float topHoleCover;
+    float holeCover;
+    float heights;
     float change;
-    float maxHeight;
     float upperHalf;
     float upperQuarter;
     float wellDepth;
 
-    float one;
-    float two;
-    float three;
-    float tetris;
-    float tss;
-    float tsd;
-    float tst;
-    float combo;
+    float normal[5];
+    float mini[3];
+    float tspin[4];
     float b2b;
+    float b2bClear;
+    float combo;
     float pc;
 } Weights;
 
-static Weights weights;
+static Weights weights = {0};
 
 void SetDefaultScoring(void) {
-    weights.holes = -200;
-    weights.topHoleCover = -30;
-    weights.change = -50;
-    weights.maxHeight = -30;
-    weights.upperHalf = -40;
-    weights.upperQuarter = -120;
-    weights.wellDepth = 3;
+    weights.holes = -1.5f;
+    weights.holeCover = -0.2f;
+    weights.heights = -0.4f;
+    weights.change = -0.2f;
+    weights.upperHalf = -1.5f;
+    weights.upperQuarter = -5.0f;
+    weights.wellDepth = 0.3f;
 
-    weights.one = -150;
-    weights.two = -70;
-    weights.three = -35;
-    weights.tetris = 400;
-    weights.tss = 150;
-    weights.tsd = 450;
-    weights.tst = 600;
-    weights.combo = 20;
-    weights.b2b = 40;
-    weights.pc = 999;
+    weights.normal[0] = 0.0f;
+    weights.normal[1] = -2.0f;
+    weights.normal[2] = -1.5f;
+    weights.normal[3] = -1.0f;
+    weights.normal[4] = 3.5f;
+
+    weights.b2b = 0.5f;
+    weights.b2bClear = 1.0f;
+    weights.combo = 1.5f;
+    weights.pc = 15.0f;
 }
 
 void Evaluate(BotState *state) {
     state->score = 0;
 
-    int32_t temp;
-    int32_t indexMaxHeight = 0;
-    int32_t indexMinHeight = BOT_ROWS;
-    int32_t heights[BOT_COLUMNS] = {0};
-    int32_t holes = 0;
-
+    int heights[BOT_COLUMNS] = {0};
+    int iMaxHeight = 0;
+    int iMinHeight = 0;
+    int holes = 0;
+    int cover = 0;
+    uint32_t coverMask;
+    int trailing;
+    
     for (int c = 0; c < BOT_COLUMNS; c++) {
-        heights[c] = 31 - __builtin_clz(state->board[c]);
-        if (heights[c] > indexMaxHeight) {
-            indexMaxHeight = c;
+        heights[c] = 32 - __builtin_clz(state->board[c]);
+        if (heights[c] > heights[iMaxHeight]) {
+            iMaxHeight = c;
         }
-        if (heights[c] < indexMinHeight) {
-            indexMinHeight = c;
+        if (heights[c] < heights[iMinHeight]) {
+            iMinHeight = c;
         }
-        holes += heights[c] - __builtin_popcount(state->board[c]);
-    }
-    state->score += weights.maxHeight * heights[indexMaxHeight];
-    if (heights[indexMaxHeight] >= (BOT_ROWS * 0.5f)) {
-        if (heights[indexMaxHeight] >= (BOT_ROWS * 0.75f)) {
-            state->score += weights.upperQuarter;
-        } else {
-            state->score += weights.upperHalf;
-        }
-    }
-    state->score += weights.holes * holes;
+        holes += (heights[c] - __builtin_popcount(state->board[c]));
 
-    int32_t topHole = 0;
-    int32_t topHoleCover = 0;
+        coverMask = (state->board[c] ^ UINT32_MAX) & ((1 << heights[c]) - 1);
+        while (coverMask != 0) {
+            trailing = __builtin_ctz(coverMask);
+            cover += LIMIT_COVER(heights[c] - trailing);
+            coverMask &= (UINT32_MAX ^ (1 << trailing));
+        }
+    }
+
+    uint32_t wellMask = UINT32_MAX;
     for (int c = 0; c < BOT_COLUMNS; c++) {
-        for (int r = (heights[c] - 1); r >= 0; r--) {
-            if ((state->board[c] & (1 << r)) != 1) {
-                if (r > topHole) {
-                    topHole = r;
-                    topHoleCover = (heights[c] - r);
-                } else if (r == topHole) {
-                    topHoleCover += (heights[c] - r);
-                }
-                break;
-            }
+        if (c == iMinHeight) {
+            continue;
         }
+        wellMask &= state->board[c];
     }
-    state->score += weights.topHoleCover * topHoleCover;
+    wellMask >>= heights[iMinHeight];
 
-
-    int32_t change = 0;
+    int change = __builtin_popcount(INT32_MAX ^ state->board[0]);
     for (int c = 0; c < (BOT_COLUMNS - 1); c++) {
-        if (c != indexMinHeight) {
-            temp = abs((heights[c] - heights[c + 1]));
-            if (temp > 2) {
-                change += temp * temp;
-            }
+       change += __builtin_popcount(state->board[c] ^ state->board[(c + 1)]);
+    }   
+    change += __builtin_popcount(INT32_MAX ^ state->board[(BOT_ROWS - 1)]);
+
+    state->score += weights.heights * heights[iMaxHeight];
+    state->score += weights.holes * holes;
+    state->score += weights.holeCover * cover;
+    state->score += weights.wellDepth * __builtin_popcount(wellMask);
+    state->score += weights.change * change;
+    if (heights[iMaxHeight] > UPPER_HALF) {
+        state->score += weights.upperHalf * (heights[iMaxHeight] - UPPER_HALF);
+    }
+    if (heights[iMaxHeight] > UPPER_QUARTER) {
+        state->score += weights.upperHalf * (heights[iMaxHeight] - UPPER_QUARTER);
+    }
+    state->score += weights.normal[state->lines];
+    if (state->highestCombo > 0) {
+        state->score += weights.combo * state->highestCombo * state->highestCombo;
+    }
+    if (state->lines > 0) {
+        if (state->lines == 4) {
+            state->score += weights.b2bClear;
+        } else {
+            state->b2b = false;
         }
     }
-    state->score += weights.change * change;
-
-
-
-    uint32_t wellDepth;
-    if (indexMinHeight == 0 ||
-        heights[(indexMinHeight + 1) < heights[(indexMinHeight - 1)]]) {
-        wellDepth = abs((heights[indexMinHeight] - heights[indexMinHeight + 1])); 
-    } else if (indexMinHeight == (BOT_COLUMNS - 1) ||
-               heights[(indexMinHeight - 1) < heights[(indexMinHeight + 1)]]) {
-        wellDepth = abs((heights[indexMinHeight] - heights[indexMinHeight - 1])); 
-    }
-    state->score += weights.wellDepth * wellDepth;
-
-
-    bool b2b = false;
-    switch (state->lines) {
-        case 1:
-            state->score += weights.one;
-            b2b = false;
-            break;
-        case 2:
-            state->score += weights.two;
-            b2b = false;
-            break;
-        case 3:
-            state->score += weights.three;
-            b2b = false;
-            break;
-        case 4:
-            state->score += weights.tetris;
-            b2b = true;
-            break;
-        default:
-            b2b = state->b2b;
-            break;
-    }
-    if (b2b) {
+    if (state->b2b) {
         state->score += weights.b2b;
-    }
-    if (state->combo >= 0) {
-        state->score += weights.combo;
-    }
-    if (state->board[indexMaxHeight] == 0) {
-        state->score += weights.pc;
     }
 }
 
