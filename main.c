@@ -23,7 +23,6 @@ int main(void) {
     SetUpBot(&bot);
     
     float frametime;
-
     while (!WindowShouldClose())
     {
         frametime = (GetFrameTime() * 1000.0f);
