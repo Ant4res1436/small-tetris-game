@@ -505,22 +505,25 @@ void UpdateTetrisGame(TetrisGame *game, float frametime) {
     }
 }
 
-void SyncGames(TetrisGame *left, TetrisGame *right) {
+int32_t SyncGames(TetrisGame *left, TetrisGame *right) {
     if (left->gameState == LOST) {
         right->gameState = WON;
-        return;
+        return 2;
     } else if (right->gameState == LOST) {
         left->gameState = WON;
-        return;
+        return 1;
     }
     if (left->outgoing == right->outgoing) {
         left->outgoing = 0;
         right->outgoing = 0;
     } else if (left->outgoing > right->outgoing) {
         SendGarbage(left, right);
+        return 1;
     } else {
         SendGarbage(right, left);
+        return 2;
     }
+    return 0;
 }
 
 TetrisClear Harddrop(TetrisGame *game) {

@@ -162,7 +162,7 @@ extern const TetrisPoint MINO_TABLE[TETRIS_SEVEN_BAG_SIZE][TETRIS_ROTATION_STATE
 TetrisGame TetrisGameNew(uint32_t seed);
 // Place in the game loop, frametime has to be in milliseconds
 void UpdateTetrisGame(TetrisGame *game, float frametime);
-void SyncGames(TetrisGame *left, TetrisGame *right);
+int32_t SyncGames(TetrisGame *left, TetrisGame *right);
 // TETRIS_DAS Movement should only be used for Player handling
 bool ToggleDasRight(TetrisGame *game);
 bool ToggleDasLeft(TetrisGame *game);
