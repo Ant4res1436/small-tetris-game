@@ -1,6 +1,8 @@
-# Tetris
+# A small Tetris game
 
-A small Tetris Game in C, my first project while learning C a few months ago, now with added
+![Gameplay screenshot](preview.png)
+
+A Tetris Game in C, my first project while learning C a few months ago, now with added
 [Cold Clear](https://github.com/MinusKelvin/cold-clear) integration as opponent.
 
 It is mostly conforming to the [Tetris Guideline](https://tetris.wiki/Tetris_Guideline) with some small
@@ -28,3 +30,11 @@ gcc -std=c99 -g main.c src/*.c ~/cold-clear/target/release/libcold_clear.a \
 Note the `-I` path and the path to `libcold_clear.a` point at where Cold Clear is built locally
 (for example I just put mine in the home directory).
 Make sure to update both to match your own setup before compiling and running.
+
+You can change the bots speed directly in the input.c in line 10:
+
+```
+(BotInterval){[speed]f, 0.0f};
+```
+
+NOTE: ColdClear cannot play at that exact speed due to line clear delay and will play a little slower overall.

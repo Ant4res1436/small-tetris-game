@@ -7,7 +7,7 @@ typedef struct {
     float timer;
 } BotInterval;
 
-static BotInterval botInterval = (BotInterval){3.0f, 0.0f};
+static BotInterval botInterval = (BotInterval){1.5f, 0.0f};
 
 static void IncrementBotTimer(TetrisGame *bot, float frametime);
 
