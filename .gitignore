@@ -1,0 +1,6 @@
+tetris
+*.o
+*.a
+*.out
+
+build.bash
